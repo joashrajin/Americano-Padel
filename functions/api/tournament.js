@@ -95,8 +95,15 @@ export async function onRequestPost(context) {
     return jsonError('Missing required fields', 400);
   }
 
-  // Validate format (defaults to americano; mexicano plays round-by-round to a target)
-  const fmt = format === 'mexicano' ? 'mexicano' : 'americano';
+  // Validate format: default to americano when omitted, but reject unknown values
+  // (mexicano plays round-by-round to a target)
+  let fmt = 'americano';
+  if (format !== undefined) {
+    if (format !== 'americano' && format !== 'mexicano') {
+      return jsonError('Invalid format', 400);
+    }
+    fmt = format;
+  }
   let mexRounds = null;
   if (fmt === 'mexicano') {
     if (!Number.isInteger(targetRounds) || targetRounds < 2 || targetRounds > 30) {
