@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Americano Padel — Free Tournament Organizer for Padel</title>
+<meta name="description" content="Organize Padel Americano tournaments for free. Generate rounds, track scores, share live leaderboards with players. No app download needed.">
+<meta name="keywords" content="padel, americano, tournament, organizer, score tracker, padel americano">
+<meta name="theme-color" content="#1a73e8">
+
+<!-- Open Graph / WhatsApp / iMessage / Slack -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Americano Padel — Free Tournament Organizer">
+<meta property="og:description" content="Organize Padel Americano tournaments for free. Generate rounds, track scores, share live leaderboards.">
+<meta property="og:url" content="https://americano-padel.pages.dev">
+<meta property="og:image" content="https://americano-padel.pages.dev/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Americano Padel — Free Tournament Organizer">
+<meta name="twitter:description" content="Organize Padel Americano tournaments for free. Generate rounds, track scores, share live leaderboards.">
+<meta name="twitter:image" content="https://americano-padel.pages.dev/og-image.png">
+
+<!-- Favicon -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F3BE;</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F3BE;</text></svg>">
+
+<link rel="canonical" href="https://americano-padel.pages.dev">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #1a73e8 0%, #4f46e5 100%);
+    padding: 20px 20px 18px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(26,115,232,0.3);
+  }
+  .header-sub { font-size: 10px; letter-spacing: 4px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; }
+  .header h1 { font-size: 24px; font-weight: 800; letter-spacing: 2px; }
+  .header-info { font-size: 11px; opacity: 0.6; margin-top: 4px; letter-spacing: 1px; font-weight: 500; }
+
+  .container { max-width: 520px; margin: 0 auto; padding: 16px 16px 40px; }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+  }
+  .card-label {
+    font-size: 11px; color: #6b7280; letter-spacing: 1.5px; margin-bottom: 12px;
+    font-weight: 700; text-transform: uppercase;
+  }
+
+  /* Player list */
+  .player-list { list-style: none; }
+  .player-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; margin-bottom: 6px;
+    background: #f8f9fb; border-radius: 10px;
+  }
+  .player-item span { font-size: 14px; font-weight: 500; color: #374151; }
+  .btn-remove {
+    background: none; border: 1px solid #e5e7eb; border-radius: 6px;
+    color: #9ca3af; font-size: 12px; padding: 4px 10px; cursor: pointer;
+    font-family: inherit; font-weight: 600; transition: all 0.15s;
+  }
+  .btn-remove:hover { border-color: #ef4444; color: #ef4444; }
+
+  /* Add player */
+  .add-row { display: flex; gap: 8px; margin-top: 12px; max-width: 100%; }
+  .add-input {
+    flex: 1; min-width: 0; padding: 10px 14px; background: #f8f9fb; border: 1.5px solid #e5e7eb;
+    border-radius: 10px; color: #1a1a2e; font-size: 14px; font-family: inherit;
+    outline: none; font-weight: 500; transition: border-color 0.15s;
+  }
+  .add-input:focus { border-color: #1a73e8; }
+  .add-input::placeholder { color: #9ca3af; }
+  .btn-add {
+    background: #1a73e8; border: none; border-radius: 10px;
+    color: #fff; font-size: 13px; padding: 10px 16px; cursor: pointer;
+    font-family: inherit; font-weight: 700; transition: background 0.15s;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .btn-add:hover { background: #1557b0; }
+
+  /* Settings */
+  .setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .setting-input {
+    width: 58px; padding: 8px; background: #f8f9fb; border: 1.5px solid #e5e7eb;
+    border-radius: 10px; color: #1a73e8; font-size: 16px; font-weight: 700;
+    text-align: center; font-family: inherit; outline: none;
+  }
+  .setting-input:focus { border-color: #1a73e8; }
+  .setting-label { font-size: 13px; color: #6b7280; font-weight: 500; }
+
+  /* Start button */
+  .btn-start {
+    display: block; width: 100%; padding: 14px; margin-top: 16px;
+    background: linear-gradient(135deg, #1a73e8, #4f46e5);
+    border: none; border-radius: 12px;
+    color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 1px;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 14px rgba(26,115,232,0.3);
+    transition: opacity 0.15s;
+  }
+  .btn-start:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
+  .btn-start:hover:not(:disabled) { opacity: 0.9; }
+  .setup-note { font-size: 11px; color: #9ca3af; margin-top: 8px; text-align: center; font-weight: 500; }
+  .setup-note.info { color: #6b7280; }
+
+  /* Round tabs */
+  .round-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+  .round-tab {
+    flex: 1; min-width: 42px; padding: 8px 4px;
+    background: #fff; border: 1.5px solid #e5e7eb; border-radius: 10px;
+    color: #9ca3af; cursor: pointer; font-size: 11px; font-family: inherit;
+    letter-spacing: 1px; text-align: center; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .round-tab.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+  .round-tab.done { background: #f0fdf4; border-color: #86efac; color: #16a34a; }
+
+  /* Match card */
+  .match-card {
+    background: #fff;
+    border-radius: 14px; padding: 18px; margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .court-label {
+    display: inline-block; font-size: 10px; letter-spacing: 1.5px; padding: 3px 10px;
+    border-radius: 6px; font-weight: 700;
+  }
+  .court-label.c0 { background: #dbeafe; color: #1d4ed8; }
+  .court-label.c1 { background: #fef3c7; color: #b45309; }
+  .court-label.c2 { background: #e0e7ff; color: #4338ca; }
+  .court-label.c3 { background: #fce7f3; color: #be185d; }
+
+  .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .match-round { font-size: 11px; color: #6b7280; letter-spacing: 1.5px; font-weight: 600; }
+  .match-rest { font-size: 10px; color: #9ca3af; letter-spacing: 1px; font-weight: 500; }
+
+  .match-body { display: flex; align-items: center; gap: 10px; }
+  .team { flex: 1; text-align: center; }
+  .team-names { font-size: 14px; font-weight: 700; margin-bottom: 6px; line-height: 1.4; }
+  .team1-names { color: #1a73e8; }
+  .team2-names { color: #e85d1a; }
+  .team-amp1 { display: block; font-size: 10px; color: #93c5fd; font-weight: 500; }
+  .team-amp2 { display: block; font-size: 10px; color: #fdba74; font-weight: 500; }
+
+  .score-input {
+    width: 62px; padding: 10px 4px; border-radius: 12px;
+    font-size: 24px; font-weight: 800; text-align: center; font-family: inherit; outline: none;
+    transition: border-color 0.15s;
+  }
+  .score-input.t1 { background: #eff6ff; border: 2px solid #bfdbfe; color: #1a73e8; }
+  .score-input.t1:focus { border-color: #1a73e8; }
+  .score-input.t2 { background: #fff7ed; border: 2px solid #fed7aa; color: #e85d1a; }
+  .score-input.t2:focus { border-color: #e85d1a; }
+  .score-display {
+    display: inline-block; width: 62px; padding: 10px 4px; border-radius: 12px;
+    font-size: 24px; font-weight: 800; text-align: center;
+  }
+  .score-display.t1 { background: #eff6ff; border: 2px solid #e5e7eb; color: #1a73e8; }
+  .score-display.t2 { background: #fff7ed; border: 2px solid #e5e7eb; color: #e85d1a; }
+
+  .vs { font-size: 11px; color: #d1d5db; font-weight: 800; letter-spacing: 2px; padding-top: 18px; }
+  .match-total { text-align: center; margin-top: 10px; font-size: 11px; color: #16a34a; font-weight: 600; letter-spacing: 1px; }
+
+  /* Nav */
+  .nav-row { display: flex; justify-content: space-between; margin-top: 14px; gap: 8px; }
+  .btn-nav {
+    background: #fff; border: 1.5px solid #e5e7eb; border-radius: 10px;
+    color: #6b7280; padding: 8px 14px; cursor: pointer; font-size: 11px;
+    font-family: inherit; font-weight: 600; transition: all 0.15s;
+  }
+  .btn-nav:hover:not(:disabled) { border-color: #1a73e8; color: #1a73e8; }
+  .btn-nav:disabled { opacity: 0.3; cursor: default; }
+  .btn-nav.clear { color: #ef4444; border-color: #fecaca; }
+  .btn-nav.clear:hover { border-color: #ef4444; }
+
+  /* Leaderboard */
+  .leaderboard {
+    background: #fff; border-radius: 14px; padding: 18px;
+    margin-top: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .lb-title { font-size: 11px; color: #6b7280; letter-spacing: 1.5px; margin-bottom: 14px; font-weight: 700; }
+  .lb-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .lb-row + .lb-row { border-top: 1px solid #f3f4f6; }
+  .lb-pos {
+    width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800;
+  }
+  .lb-pos.gold { background: #fef3c7; color: #b45309; }
+  .lb-pos.silver { background: #f1f5f9; color: #64748b; }
+  .lb-pos.bronze { background: #ffedd5; color: #c2410c; }
+  .lb-pos.none { background: #f3f4f6; color: #9ca3af; }
+  .lb-name { flex: 0 0 80px; font-size: 13px; font-weight: 600; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-name.first { color: #1a73e8; }
+  .lb-bar-bg { flex: 1; height: 14px; background: #f3f4f6; border-radius: 7px; overflow: hidden; position: relative; }
+  .lb-bar {
+    position: absolute; top: 0; left: 0; height: 100%; border-radius: 7px;
+    transition: width 0.4s ease;
+  }
+  .lb-bar.first { background: linear-gradient(90deg, #1a73e8, #60a5fa); }
+  .lb-bar.other { background: linear-gradient(90deg, #e5e7eb, #d1d5db); }
+  .lb-pts { font-size: 14px; font-weight: 800; width: 36px; text-align: right; color: #6b7280; }
+  .lb-pts.first { color: #1a73e8; }
+  .lb-played { font-size: 10px; color: #9ca3af; width: 20px; font-weight: 500; }
+
+  /* Action buttons */
+  .btn-add-round {
+    display: block; margin-top: 12px; padding: 12px; width: 100%;
+    background: #fff; border: 2px dashed #1a73e8; border-radius: 12px;
+    color: #1a73e8; font-size: 12px; cursor: pointer; font-family: inherit;
+    font-weight: 700; letter-spacing: 1px; transition: background 0.15s;
+  }
+  .btn-add-round:hover { background: #eff6ff; }
+  .btn-back {
+    display: block; margin-top: 8px; padding: 10px; width: 100%;
+    background: #fff; border: 1.5px solid #fecaca; border-radius: 12px;
+    color: #ef4444; font-size: 12px; cursor: pointer; font-family: inherit;
+    font-weight: 600; letter-spacing: 1px;
+  }
+  .btn-share {
+    display: block; margin-top: 8px; padding: 12px; width: 100%;
+    background: linear-gradient(135deg, #1a73e8, #4f46e5);
+    border: none; border-radius: 12px;
+    color: #fff; font-size: 12px; cursor: pointer; font-family: inherit;
+    font-weight: 700; letter-spacing: 1px;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.25);
+    transition: opacity 0.15s;
+  }
+  .btn-share:hover { opacity: 0.9; }
+
+  .share-banner {
+    background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 14px;
+    padding: 14px; margin-bottom: 14px; text-align: center;
+  }
+  .share-banner .share-url {
+    font-size: 12px; color: #1a73e8; word-break: break-all; margin-bottom: 6px; font-weight: 600;
+  }
+  .share-banner .share-hint { font-size: 10px; color: #6b7280; letter-spacing: 1px; font-weight: 500; }
+  .share-banner .share-expiry { font-size: 10px; color: #9ca3af; margin-top: 4px; font-weight: 500; }
+
+  .viewer-badge {
+    display: inline-block; font-size: 10px; letter-spacing: 2px; padding: 4px 12px;
+    border-radius: 6px; background: #fef3c7; color: #b45309; font-weight: 700; margin-bottom: 8px;
+  }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1a73e8; border-radius: 12px;
+    padding: 10px 24px; color: #fff; font-size: 12px; font-family: inherit;
+    font-weight: 600; letter-spacing: 1px; z-index: 999; opacity: 0; transition: opacity 0.3s;
+    box-shadow: 0 4px 16px rgba(26,115,232,0.35);
+  }
+  .toast.show { opacity: 1; }
+
+  .loading { text-align: center; padding: 60px 20px; color: #6b7280; font-size: 14px; font-weight: 600; }
+  .error-card {
+    background: #fff; border-radius: 14px;
+    padding: 40px 24px; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .error-card .error-icon { font-size: 40px; margin-bottom: 16px; }
+  .error-card .error-msg { font-size: 14px; color: #6b7280; margin-bottom: 20px; font-weight: 500; }
+  .btn-home {
+    display: inline-block; padding: 12px 24px;
+    background: linear-gradient(135deg, #1a73e8, #4f46e5);
+    border: none; border-radius: 12px;
+    color: #fff; font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    cursor: pointer; font-family: inherit; text-decoration: none;
+    box-shadow: 0 4px 14px rgba(26,115,232,0.3);
+  }
+
+  .btn-refresh {
+    display: block; margin-top: 12px; padding: 12px; width: 100%;
+    background: #fff; border: 1.5px solid #e5e7eb; border-radius: 12px;
+    color: #6b7280; font-size: 12px; cursor: pointer; font-family: inherit;
+    font-weight: 600; letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .btn-refresh:hover { border-color: #1a73e8; color: #1a73e8; }
+
+  /* Court selector */
+  .court-selector { display: flex; gap: 8px; margin-bottom: 8px; }
+  .court-option {
+    flex: 1; padding: 12px 8px; background: #f8f9fb; border: 2px solid #e5e7eb;
+    border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .court-option.active { border-color: #1a73e8; background: #eff6ff; }
+  .court-option.disabled { opacity: 0.3; cursor: default; }
+  .court-option:hover:not(.active) { border-color: #bfdbfe; }
+  .court-option .court-icon { margin-bottom: 4px; display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
+  .court-option .court-icon .court-box {
+    width: 16px; height: 22px; border-radius: 2px; border: 1.5px solid #9ca3af;
+    background: #f0fdf4; position: relative; overflow: hidden;
+  }
+  .court-option .court-icon .court-box::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 50%;
+    border-top: 1.5px dashed #9ca3af;
+  }
+  .court-option .court-icon .court-box::after {
+    content: ''; position: absolute; left: 50%; top: 20%; bottom: 20%;
+    border-left: 1px solid #d1d5db;
+  }
+  .court-option.active .court-icon .court-box { border-color: #1a73e8; background: #dbeafe; }
+  .court-option.active .court-icon .court-box::before { border-top-color: #1a73e8; }
+  .court-option.active .court-icon .court-box::after { border-left-color: #93c5fd; }
+  .court-option .court-num { font-size: 13px; font-weight: 700; color: #9ca3af; }
+  .court-option.active .court-num { color: #1a73e8; }
+
+  /* Points presets */
+  .points-presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .points-pill {
+    padding: 8px 16px; background: #f8f9fb; border: 2px solid #e5e7eb;
+    border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 700;
+    color: #6b7280; font-family: inherit; transition: all 0.15s;
+  }
+  .points-pill.active { border-color: #1a73e8; background: #eff6ff; color: #1a73e8; }
+  .points-pill:hover:not(.active) { border-color: #bfdbfe; }
+  .custom-points-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  }
+  .custom-points-input {
+    width: 70px; padding: 8px; background: #f8f9fb; border: 2px solid #1a73e8;
+    border-radius: 10px; color: #1a73e8; font-size: 16px; font-weight: 700;
+    text-align: center; font-family: inherit; outline: none;
+  }
+  .custom-points-label { font-size: 13px; color: #6b7280; font-weight: 500; }
+
+  /* Mobile optimizations */
+  @media (max-width: 600px) {
+    .header { padding: 18px 16px 16px; }
+    .header h1 { font-size: 22px; }
+    .container { padding: 12px 16px 40px; }
+    .player-item span { font-size: 16px; }
+    .add-input { font-size: 16px; padding: 12px 12px; } /* 16px prevents iOS zoom */
+    .btn-add { font-size: 14px; padding: 12px 14px; }
+    .setting-input { font-size: 18px; width: 64px; padding: 10px; }
+    .setting-label { font-size: 14px; }
+    .btn-start { font-size: 16px; padding: 16px; }
+    .team-names { font-size: 16px; }
+    .score-input { width: 70px; font-size: 28px; padding: 12px 4px; }
+    .score-display { width: 70px; font-size: 28px; padding: 12px 4px; }
+    .vs { font-size: 12px; }
+    .match-total { font-size: 12px; }
+    .round-tab { padding: 10px 4px; font-size: 12px; }
+    .lb-name { font-size: 14px; flex: 0 0 90px; }
+    .lb-pts { font-size: 16px; }
+    .lb-pos { width: 26px; height: 26px; font-size: 12px; }
+    .btn-nav { padding: 10px 16px; font-size: 13px; }
+    .btn-share { padding: 14px; font-size: 14px; }
+    .btn-add-round { padding: 14px; font-size: 13px; }
+    .btn-back { padding: 12px; font-size: 13px; }
+    .btn-refresh { padding: 14px; font-size: 13px; }
+    .share-banner .share-url { font-size: 13px; }
+    .card-label { font-size: 12px; }
+    .setup-note { font-size: 12px; }
+    .court-label { font-size: 11px; }
+    .match-round { font-size: 12px; }
+    .match-rest { font-size: 11px; }
+    .btn-remove { font-size: 13px; padding: 6px 12px; }
+    .court-option { padding: 14px 8px; }
+    .points-pill { padding: 10px 18px; font-size: 15px; }
+    .custom-points-input { font-size: 18px; width: 76px; padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-sub">Padel Tournament</div>
+  <h1>AMERICANO</h1>
+  <div class="header-info" id="headerInfo">SETUP</div>
+</div>
+
+<div class="container" id="app"></div>
+<footer style="text-align:center;padding:20px 16px 32px;font-size:12px;color:#9ca3af;font-family:'Inter',sans-serif;">
+  Developed by <a href="https://joash.blog" target="_blank" rel="noopener" style="color:#1a73e8;text-decoration:none;font-weight:600;">Joash</a>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+let state = {
+  screen: 'setup',
+  players: [],
+  courts: 2,
+  pointsPerMatch: 24,
+  customPoints: false,
+  rounds: [],
+  scores: [],
+  activeRound: 0,
+  tournamentId: null,
+  editToken: null,
+  isViewer: false,
+  createdAt: null,
+};
+
+let saveTimer = null;
+
+function getTournamentIdFromUrl() {
+  var path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (path && /^[a-z0-9]{4,10}$/.test(path)) return path;
+  return null;
+}
+
+async function init() {
+  var urlId = getTournamentIdFromUrl();
+  if (urlId) {
+    renderLoading();
+    try {
+      var res = await fetch('/api/tournament?id=' + urlId);
+      if (!res.ok) throw new Error('not found');
+      var data = await res.json();
+      state.players = data.players;
+      state.courts = data.courts;
+      state.pointsPerMatch = data.pointsPerMatch;
+      state.rounds = data.rounds;
+      state.scores = data.scores;
+      state.createdAt = data.createdAt;
+      state.tournamentId = urlId;
+      state.activeRound = 0;
+      state.screen = 'tournament';
+      var storedToken = localStorage.getItem('americano_token_' + urlId);
+      if (storedToken) {
+        state.editToken = storedToken;
+        state.isViewer = false;
+      } else {
+        state.editToken = null;
+        state.isViewer = true;
+      }
+      render();
+    } catch (e) {
+      renderError('Tournament not found or expired.');
+    }
+  } else {
+    render();
+  }
+}
+
+function renderLoading() {
+  document.getElementById('app').innerHTML = '<div class="loading">Loading tournament...</div>';
+}
+
+function renderError(msg) {
+  document.getElementById('headerInfo').textContent = 'NOT FOUND';
+  document.getElementById('app').innerHTML =
+    '<div class="error-card">' +
+    '<div class="error-icon">&#x1F3BE;</div>' +
+    '<div class="error-msg">' + esc(msg) + '</div>' +
+    '<button class="btn-home" onclick="goHome()">Create New Tournament</button>' +
+    '</div>';
+}
+
+function goHome() {
+  history.pushState(null, '', '/');
+  state = {
+    screen: 'setup', players: [], courts: 2, pointsPerMatch: 24, customPoints: false,
+    rounds: [], scores: [], activeRound: 0,
+    tournamentId: null, editToken: null, isViewer: false, createdAt: null,
+  };
+  render();
+}
+
+function esc(str) {
+  var d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 2000);
+}
+
+async function saveTournamentToServer() {
+  if (!state.tournamentId || !state.editToken) return;
+  try {
+    await fetch('/api/tournament/' + state.tournamentId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        editToken: state.editToken,
+        scores: state.scores,
+        rounds: state.rounds,
+      }),
+    });
+  } catch (e) {
+    showToast('Save failed — check connection');
+  }
+}
+
+function debouncedSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveTournamentToServer, 800);
+}
+
+async function createTournamentOnServer() {
+  try {
+    var res = await fetch('/api/tournament', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        players: state.players,
+        courts: state.courts,
+        pointsPerMatch: state.pointsPerMatch,
+        rounds: state.rounds,
+        scores: state.scores,
+      }),
+    });
+    if (!res.ok) throw new Error('API error');
+    var data = await res.json();
+    state.tournamentId = data.id;
+    state.editToken = data.editToken;
+    state.createdAt = new Date().toISOString();
+    state.isViewer = false;
+    localStorage.setItem('americano_token_' + data.id, data.editToken);
+    history.pushState(null, '', '/' + data.id);
+  } catch (e) {
+    showToast('Offline mode — no sharing');
+  }
+}
+
+function copyShareLink() {
+  var url = window.location.origin + '/' + state.tournamentId;
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('Link copied!');
+  }).catch(function() {
+    showToast(url);
+  });
+}
+
+function getExpiryText() {
+  if (!state.createdAt) return '';
+  var created = new Date(state.createdAt);
+  var expiry = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+  var now = new Date();
+  var daysLeft = Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)));
+  if (daysLeft === 0) return 'Expires today';
+  if (daysLeft === 1) return 'Expires tomorrow';
+  return 'Expires in ' + daysLeft + ' days';
+}
+
+function generateRounds(players, courts) {
+  var n = players.length;
+  var matchesPerRound = Math.min(courts, Math.floor(n / 4));
+  var playersPerRound = matchesPerRound * 4;
+  var pairs = [];
+  for (var i = 0; i < n; i++)
+    for (var j = i + 1; j < n; j++)
+      pairs.push([i, j]);
+  var rounds = [];
+  var usedPairSets = new Set();
+  var playerRoundCount = new Array(n).fill(0);
+  var targetRounds;
+  if (playersPerRound >= n) {
+    targetRounds = n - 1;
+  } else {
+    targetRounds = n <= 4 ? 3 : n === 5 ? 5 : n === 6 ? 6 : n === 7 ? 7 : Math.min(n + 2, 12);
+  }
+  for (var r = 0; r < targetRounds; r++) {
+    var matches = [];
+    var usedInRound = new Set();
+    for (var m = 0; m < matchesPerRound; m++) {
+      var bestMatch = null;
+      var bestScore = -Infinity;
+      for (var a = 0; a < pairs.length; a++) {
+        var a1 = pairs[a][0], a2 = pairs[a][1];
+        if (usedInRound.has(a1) || usedInRound.has(a2)) continue;
+        var pairAKey = a1 + ',' + a2;
+        for (var b = a + 1; b < pairs.length; b++) {
+          var b1 = pairs[b][0], b2 = pairs[b][1];
+          if (usedInRound.has(b1) || usedInRound.has(b2)) continue;
+          var fourPlayers = new Set([a1, a2, b1, b2]);
+          if (fourPlayers.size !== 4) continue;
+          var pairBKey = b1 + ',' + b2;
+          var pairANew = !usedPairSets.has(pairAKey) ? 1 : 0;
+          var pairBNew = !usedPairSets.has(pairBKey) ? 1 : 0;
+          var counts = [a1, a2, b1, b2].map(function(p) { return playerRoundCount[p]; });
+          var totalPlayed = counts.reduce(function(s, c) { return s + c; }, 0);
+          var maxCount = Math.max.apply(null, counts);
+          var score = (pairANew + pairBNew) * 500 - totalPlayed * 10 - maxCount * 50;
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = { team1: [a1, a2], team2: [b1, b2], pairAKey: pairAKey, pairBKey: pairBKey };
+          }
+        }
+      }
+      if (!bestMatch) break;
+      bestMatch.team1.forEach(function(p) { usedInRound.add(p); });
+      bestMatch.team2.forEach(function(p) { usedInRound.add(p); });
+      usedPairSets.add(bestMatch.pairAKey);
+      usedPairSets.add(bestMatch.pairBKey);
+      bestMatch.team1.forEach(function(p) { playerRoundCount[p]++; });
+      bestMatch.team2.forEach(function(p) { playerRoundCount[p]++; });
+      matches.push({
+        team1: bestMatch.team1.map(function(i) { return players[i]; }),
+        team2: bestMatch.team2.map(function(i) { return players[i]; }),
+      });
+    }
+    if (matches.length === 0) break;
+    var playing = new Set();
+    matches.forEach(function(m) { m.team1.forEach(function(p) { playing.add(p); }); m.team2.forEach(function(p) { playing.add(p); }); });
+    var resting = players.filter(function(p) { return !playing.has(p); });
+    rounds.push({ matches: matches, rest: resting });
+  }
+  return rounds;
+}
+
+function render() {
+  var app = document.getElementById('app');
+  if (state.screen === 'setup') renderSetup(app);
+  else renderTournament(app);
+}
+
+function renderSetup(app) {
+  document.getElementById('headerInfo').textContent = 'SETUP';
+  var minPlayers = state.players.length >= 4;
+  var matchesPerRound = Math.min(state.courts, Math.floor(state.players.length / 4));
+  var playersPerRound = matchesPerRound * 4;
+  var resting = state.players.length - playersPerRound;
+
+  app.innerHTML =
+    '<div class="card">' +
+    '<div class="card-label">Players (' + state.players.length + ')</div>' +
+    '<ul class="player-list">' +
+    state.players.map(function(p, i) {
+      return '<li class="player-item"><span>' + esc(p) + '</span>' +
+        '<button class="btn-remove" onclick="removePlayer(' + i + ')">&#x2715;</button></li>';
+    }).join('') +
+    '</ul>' +
+    '<div class="add-row">' +
+    '<input class="add-input" id="newPlayer" placeholder="Add player name..." onkeydown="if(event.key===\'Enter\')addPlayer()">' +
+    '<button class="btn-add" onclick="addPlayer()">+ Add</button>' +
+    '</div></div>' +
+    '<div class="card">' +
+    '<div class="card-label">Courts</div>' +
+    '<div class="court-selector">' +
+    [1,2,3,4].map(function(n) {
+      var maxCourts = Math.floor(state.players.length / 4);
+      var disabled = n > maxCourts;
+      var boxes = '';
+      for (var b = 0; b < n; b++) boxes += '<div class="court-box"></div>';
+      return '<div class="court-option' + (state.courts === n ? ' active' : '') + (disabled ? ' disabled' : '') + '"' +
+        (disabled ? '' : ' onclick="state.courts=' + n + ';render()"') + '>' +
+        '<div class="court-icon">' + boxes + '</div>' +
+        '<div class="court-num">' + n + '</div></div>';
+    }).join('') +
+    '</div></div>' +
+    '<div class="card">' +
+    '<div class="card-label">Points per match</div>' +
+    '<div class="points-presets">' +
+    [16, 21, 24, 32].map(function(n) {
+      return '<button class="points-pill' + (state.pointsPerMatch === n && !state.customPoints ? ' active' : '') + '" onclick="state.pointsPerMatch=' + n + ';state.customPoints=false;render()">' + n + '</button>';
+    }).join('') +
+    '<button class="points-pill' + (state.customPoints ? ' active' : '') + '" onclick="state.customPoints=true;render()">Custom</button>' +
+    '</div>' +
+    (state.customPoints ? '<div class="custom-points-row"><input class="custom-points-input" id="customPts" type="number" min="8" max="64" value="' + state.pointsPerMatch + '" onchange="state.pointsPerMatch=Math.max(8,Math.min(64,parseInt(this.value)||24));render()"><span class="custom-points-label">points</span></div>' : '') +
+    (minPlayers ? '<div class="setup-note info">' + matchesPerRound + ' match' + (matchesPerRound > 1 ? 'es' : '') + ' per round &middot; ' + playersPerRound + ' playing' + (resting > 0 ? ' &middot; ' + resting + ' resting' : ' &middot; nobody rests') + '</div>' : '') +
+    '</div>' +
+    '<button class="btn-start" ' + (!minPlayers ? 'disabled' : '') + ' onclick="startTournament()">Start Tournament</button>' +
+    (!minPlayers ? '<div class="setup-note">Need at least 4 players</div>' : '');
+}
+
+function renderTournament(app) {
+  var rounds = state.rounds, scores = state.scores, activeRound = state.activeRound;
+  var players = state.players, pointsPerMatch = state.pointsPerMatch, courts = state.courts;
+  var isViewer = state.isViewer;
+  var totalMatches = scores.reduce(function(sum, rs) { return sum + rs.filter(function(s) { return s.team1 !== '' && s.team2 !== ''; }).length; }, 0);
+  var totalPossible = scores.reduce(function(sum, rs) { return sum + rs.length; }, 0);
+  document.getElementById('headerInfo').textContent =
+    players.length + ' Players \u2022 ' + courts + ' Court' + (courts > 1 ? 's' : '') + ' \u2022 ' + rounds.length + ' Rounds';
+
+  var standings = getStandings();
+  var maxPts = Math.max.apply(null, standings.map(function(s) { return s.points; }).concat([1]));
+  var r = rounds[activeRound];
+  var rs = scores[activeRound];
+
+  var html = '';
+
+  if (state.tournamentId) {
+    html += '<div class="share-banner">';
+    if (isViewer) html += '<div class="viewer-badge">VIEW ONLY</div><br>';
+    html += '<div class="share-url">' + window.location.origin + '/' + state.tournamentId + '</div>';
+    html += '<div class="share-hint">Share this link with players</div>';
+    if (state.createdAt) html += '<div class="share-expiry">' + getExpiryText() + '</div>';
+    html += '</div>';
+  }
+
+  html += '<div class="round-tabs">';
+  for (var i = 0; i < rounds.length; i++) {
+    var d = scores[i].every(function(s) { return s.team1 !== '' && s.team2 !== ''; });
+    html += '<button class="round-tab ' + (i === activeRound ? 'active' : '') + ' ' + (d ? 'done' : '') + '" onclick="state.activeRound=' + i + ';render()">';
+    if (d) html += '<span style="font-size:9px;display:block">&#x2713;</span>';
+    html += 'R' + (i + 1) + '</button>';
+  }
+  html += '</div>';
+
+  html += '<div class="match-header"><span class="match-round">Round ' + (activeRound + 1) + ' of ' + rounds.length + '</span>';
+  html += '<span class="match-rest">' + (r.rest.length ? '\uD83E\uDE91 ' + r.rest.map(esc).join(', ') : '\u2705 All playing') + '</span></div>';
+
+  for (var mi = 0; mi < r.matches.length; mi++) {
+    var m = r.matches[mi];
+    var s = rs[mi];
+    var done = s.team1 !== '' && s.team2 !== '';
+    html += '<div class="match-card">';
+    html += '<span class="court-label c' + mi + '">Court ' + (mi + 1) + '</span>';
+    html += '<div class="match-body">';
+    html += '<div class="team"><div class="team-names team1-names">' + esc(m.team1[0]) + '<span class="team-amp1">&</span>' + esc(m.team1[1]) + '</div>';
+    if (isViewer) {
+      html += '<span class="score-display t1">' + (s.team1 !== '' ? s.team1 : '\u2013') + '</span>';
+    } else {
+      html += '<input class="score-input t1" type="number" min="0" max="' + pointsPerMatch + '" value="' + s.team1 + '" placeholder="\u2013" oninput="onScoreInput(' + activeRound + ',' + mi + ',\'team1\',this.value)" onblur="onScoreBlur(' + activeRound + ',' + mi + ',\'team1\')">';
+    }
+    html += '</div>';
+    html += '<div class="vs">VS</div>';
+    html += '<div class="team"><div class="team-names team2-names">' + esc(m.team2[0]) + '<span class="team-amp2">&</span>' + esc(m.team2[1]) + '</div>';
+    if (isViewer) {
+      html += '<span class="score-display t2">' + (s.team2 !== '' ? s.team2 : '\u2013') + '</span>';
+    } else {
+      html += '<input class="score-input t2" type="number" min="0" max="' + pointsPerMatch + '" value="' + s.team2 + '" placeholder="\u2013" oninput="onScoreInput(' + activeRound + ',' + mi + ',\'team2\',this.value)" onblur="onScoreBlur(' + activeRound + ',' + mi + ',\'team2\')">';
+    }
+    html += '</div></div>';
+    if (done) html += '<div class="match-total">\u2713 = ' + pointsPerMatch + ' total</div>';
+    html += '</div>';
+  }
+
+  html += '<div class="nav-row">';
+  html += '<button class="btn-nav" ' + (activeRound === 0 ? 'disabled' : '') + ' onclick="state.activeRound=Math.max(0,state.activeRound-1);render()">\u2190 Prev</button>';
+  if (!isViewer) html += '<button class="btn-nav clear" onclick="clearRound(' + activeRound + ')">Clear</button>';
+  html += '<button class="btn-nav" ' + (activeRound === rounds.length - 1 ? 'disabled' : '') + ' onclick="state.activeRound=Math.min(state.rounds.length-1,state.activeRound+1);render()">Next \u2192</button>';
+  html += '</div>';
+
+  html += '<div class="leaderboard"><div class="lb-title">Leaderboard \u2014 ' + totalMatches + '/' + totalPossible + ' matches</div>';
+  for (var i = 0; i < standings.length; i++) {
+    var st = standings[i];
+    var posClass = i === 0 && st.points > 0 ? 'gold' : i === 1 && st.points > 0 ? 'silver' : i === 2 && st.points > 0 ? 'bronze' : 'none';
+    var isFirst = i === 0 && st.points > 0;
+    var barW = maxPts > 0 ? (st.points / maxPts) * 100 : 0;
+    html += '<div class="lb-row">';
+    html += '<div class="lb-pos ' + posClass + '">' + (i + 1) + '</div>';
+    html += '<div class="lb-name ' + (isFirst ? 'first' : '') + '">' + esc(st.name) + '</div>';
+    html += '<div class="lb-bar-bg"><div class="lb-bar ' + (isFirst ? 'first' : 'other') + '" style="width:' + barW + '%"></div></div>';
+    html += '<div class="lb-pts ' + (isFirst ? 'first' : '') + '">' + st.points + '</div>';
+    html += '<div class="lb-played">/' + st.played + '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  if (state.tournamentId) {
+    html += '<button class="btn-share" onclick="copyShareLink()">Copy Share Link</button>';
+  }
+  if (!isViewer) {
+    html += '<button class="btn-add-round" onclick="addBonusRound()">+ Add Bonus Round</button>';
+    html += '<button class="btn-back" onclick="confirmReset()">\u2190 Back to Setup</button>';
+  }
+  if (isViewer) {
+    html += '<button class="btn-refresh" onclick="location.reload()">&#x21BB; Refresh Scores</button>';
+  }
+
+  app.innerHTML = html;
+}
+
+function getStandings() {
+  var pts = {}, played = {};
+  state.players.forEach(function(p) { pts[p] = 0; played[p] = 0; });
+  state.scores.forEach(function(rs, i) {
+    rs.forEach(function(s, mi) {
+      if (s.team1 !== '' && s.team2 !== '') {
+        var m = state.rounds[i].matches[mi];
+        m.team1.forEach(function(p) { pts[p] += Number(s.team1); played[p]++; });
+        m.team2.forEach(function(p) { pts[p] += Number(s.team2); played[p]++; });
+      }
+    });
+  });
+  return state.players.map(function(p) { return { name: p, points: pts[p], played: played[p] }; })
+    .sort(function(a, b) { return b.points - a.points || a.played - b.played; });
+}
+
+function onScoreInput(roundIdx, matchIdx, team, value) {
+  // Just store the raw value — don't auto-complement yet (let user finish typing e.g. "14")
+  var num = value === '' ? '' : Math.max(0, parseInt(value) || 0);
+  state.scores[roundIdx][matchIdx][team] = num;
+}
+
+function onScoreBlur(roundIdx, matchIdx, team) {
+  // On blur: clamp, compute complement, re-render
+  var s = state.scores[roundIdx][matchIdx];
+  var val = s[team];
+  if (val === '') return;
+  val = Math.max(0, Math.min(state.pointsPerMatch, val));
+  s[team] = val;
+  var other = team === 'team1' ? 'team2' : 'team1';
+  s[other] = state.pointsPerMatch - val;
+  render();
+  debouncedSave();
+}
+
+function clearRound(idx) {
+  state.scores[idx] = state.rounds[idx].matches.map(function() { return { team1: '', team2: '' }; });
+  render();
+  debouncedSave();
+}
+
+function addBonusRound() {
+  var players = state.players;
+  var n = players.length;
+  var matchesPerRound = Math.min(state.courts, Math.floor(n / 4));
+  if (n < 4) return;
+  var usedPartners = new Set();
+  state.rounds.forEach(function(r) {
+    r.matches.forEach(function(m) {
+      usedPartners.add(m.team1.slice().sort().join('|'));
+      usedPartners.add(m.team2.slice().sort().join('|'));
+    });
+  });
+  var playCount = {};
+  players.forEach(function(p) { playCount[p] = 0; });
+  state.rounds.forEach(function(r) {
+    r.matches.forEach(function(m) {
+      m.team1.forEach(function(p) { playCount[p]++; });
+      m.team2.forEach(function(p) { playCount[p]++; });
+    });
+  });
+  var allPairs = [];
+  for (var i = 0; i < n; i++)
+    for (var j = i + 1; j < n; j++)
+      allPairs.push([players[i], players[j]]);
+  var matches = [];
+  var usedInRound = new Set();
+  for (var m = 0; m < matchesPerRound; m++) {
+    var bestMatch = null;
+    var bestScore = -Infinity;
+    for (var a = 0; a < allPairs.length; a++) {
+      if (allPairs[a].some(function(p) { return usedInRound.has(p); })) continue;
+      for (var b = a + 1; b < allPairs.length; b++) {
+        if (allPairs[b].some(function(p) { return usedInRound.has(p); })) continue;
+        var fourPlayers = new Set(allPairs[a].concat(allPairs[b]));
+        if (fourPlayers.size !== 4) continue;
+        var pairAKey = allPairs[a].slice().sort().join('|');
+        var pairBKey = allPairs[b].slice().sort().join('|');
+        var newPairs = (!usedPartners.has(pairAKey) ? 1 : 0) + (!usedPartners.has(pairBKey) ? 1 : 0);
+        var counts = [];
+        fourPlayers.forEach(function(p) { counts.push(playCount[p]); });
+        var totalPlayed = counts.reduce(function(s, c) { return s + c; }, 0);
+        var score = newPairs * 500 - totalPlayed * 10;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = { team1: allPairs[a], team2: allPairs[b] };
+        }
+      }
+    }
+    if (!bestMatch) break;
+    bestMatch.team1.forEach(function(p) { usedInRound.add(p); playCount[p]++; });
+    bestMatch.team2.forEach(function(p) { usedInRound.add(p); playCount[p]++; });
+    usedPartners.add(bestMatch.team1.slice().sort().join('|'));
+    usedPartners.add(bestMatch.team2.slice().sort().join('|'));
+    matches.push({ team1: bestMatch.team1, team2: bestMatch.team2 });
+  }
+  if (matches.length === 0) { alert('No more unique pairings available!'); return; }
+  var playing = new Set();
+  matches.forEach(function(m) { m.team1.forEach(function(p) { playing.add(p); }); m.team2.forEach(function(p) { playing.add(p); }); });
+  var resting = players.filter(function(p) { return !playing.has(p); });
+  state.rounds.push({ matches: matches, rest: resting });
+  state.scores.push(matches.map(function() { return { team1: '', team2: '' }; }));
+  state.activeRound = state.rounds.length - 1;
+  render();
+  debouncedSave();
+}
+
+function addPlayer() {
+  var input = document.getElementById('newPlayer');
+  var name = input.value.trim();
+  if (name && !state.players.includes(name)) {
+    state.players.push(name);
+    // Auto-set courts to max available when hitting a new threshold (4, 8, 12, 16)
+    var maxCourts = Math.floor(state.players.length / 4);
+    if (state.players.length % 4 === 0 && maxCourts >= 1 && maxCourts <= 4) {
+      state.courts = maxCourts;
+    }
+    render();
+  }
+}
+
+function removePlayer(idx) {
+  state.players.splice(idx, 1);
+  var maxCourts = Math.max(1, Math.floor(state.players.length / 4));
+  if (state.courts > maxCourts) state.courts = maxCourts;
+  render();
+}
+
+async function startTournament() {
+  state.rounds = generateRounds(state.players, state.courts);
+  state.scores = state.rounds.map(function(r) { return r.matches.map(function() { return { team1: '', team2: '' }; }); });
+  state.activeRound = 0;
+  state.screen = 'tournament';
+  render();
+  await createTournamentOnServer();
+  render();
+}
+
+function confirmReset() {
+  if (confirm('Back to setup? Scores will be lost.')) {
+    resetToSetup();
+  }
+}
+
+function resetToSetup() {
+  state.screen = 'setup';
+  state.rounds = [];
+  state.scores = [];
+  state.activeRound = 0;
+  state.customPoints = false;
+  state.tournamentId = null;
+  state.editToken = null;
+  state.isViewer = false;
+  state.createdAt = null;
+  history.pushState(null, '', '/');
+  render();
+}
+
+window.addEventListener('popstate', function() { init(); });
+init();
+</script>
+</body>
+</html>
