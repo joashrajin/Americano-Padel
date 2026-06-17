@@ -1,15 +1,16 @@
 # Americano Padel
 
-A lightweight web app for running Americano-format padel tournaments. Create a tournament, share a link, and track scores live — no accounts required.
+A lightweight web app for running Americano- and Mexicano-format padel tournaments. Create a tournament, share a link, and track scores live — no accounts required.
 
-## What is Americano?
+## Formats
 
-Americano is a padel format where partners rotate each round. The app auto-generates a schedule to maximise variety in pairings, then tracks scores and updates the leaderboard in real time.
+- **Americano** — partners rotate every round on a fixed schedule generated up front, maximising pairing variety.
+- **Mexicano** — the organiser picks a number of rounds and each round's pairings are seeded from the live standings (top 4 share a court, paired 1+4 vs 2+3), so matches stay competitive. Round 1 is balanced; later rounds are generated one at a time as scores come in.
 
 ## Features
 
-- Supports 4–20 players, 1–4 courts
-- Auto-generates a round schedule with balanced partner rotation
+- Two formats: Americano (fixed schedule) and Mexicano (standings-based)
+- Supports 4–20 players, 1–4 courts, with fair rest rotation
 - Share a live link — viewers see scores update without an account
 - Scores and standings persist for 7 days via Cloudflare KV
 - Works offline (local-only mode if the API is unreachable)

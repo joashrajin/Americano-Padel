@@ -88,11 +88,21 @@ export async function onRequestPost(context) {
     return jsonError('Invalid JSON', 400);
   }
 
-  const { players, courts, pointsPerMatch, rounds, scores } = body;
+  const { players, courts, pointsPerMatch, rounds, scores, format, targetRounds } = body;
 
   // Validate required fields exist
   if (!Array.isArray(players) || !Array.isArray(rounds) || !Array.isArray(scores)) {
     return jsonError('Missing required fields', 400);
+  }
+
+  // Validate format (defaults to americano; mexicano plays round-by-round to a target)
+  const fmt = format === 'mexicano' ? 'mexicano' : 'americano';
+  let mexRounds = null;
+  if (fmt === 'mexicano') {
+    if (!Number.isInteger(targetRounds) || targetRounds < 2 || targetRounds > 30) {
+      return jsonError('Rounds must be 2-30', 400);
+    }
+    mexRounds = targetRounds;
   }
 
   // Validate players
@@ -137,7 +147,7 @@ export async function onRequestPost(context) {
   const editToken = generateToken();
   const createdAt = new Date().toISOString();
 
-  const data = { editToken, players, courts, pointsPerMatch, rounds, scores, createdAt };
+  const data = { editToken, players, courts, pointsPerMatch, rounds, scores, createdAt, format: fmt, targetRounds: mexRounds };
 
   await context.env.TOURNAMENTS.put(`tournament:${id}`, JSON.stringify(data), {
     expirationTtl: TTL,
