@@ -232,7 +232,8 @@
     color: #1a73e8; font-size: 12px; cursor: pointer; font-family: inherit;
     font-weight: 700; letter-spacing: 1px; transition: background 0.15s;
   }
-  .btn-add-round:hover { background: #eff6ff; }
+  .btn-add-round:hover:not(:disabled) { background: #eff6ff; }
+  .btn-add-round:disabled { opacity: 0.4; cursor: default; }
   .btn-back {
     display: block; margin-top: 8px; padding: 10px; width: 100%;
     background: #fff; border: 1.5px solid #fecaca; border-radius: 12px;
@@ -348,6 +349,19 @@
   }
   .custom-points-label { font-size: 13px; color: #6b7280; font-weight: 500; }
 
+  /* Format selector */
+  .format-selector { display: flex; gap: 8px; }
+  .format-option {
+    flex: 1; padding: 14px 10px; background: #f8f9fb; border: 2px solid #e5e7eb;
+    border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .format-option.active { border-color: #1a73e8; background: #eff6ff; }
+  .format-option:hover:not(.active) { border-color: #bfdbfe; }
+  .format-option .format-name { font-size: 14px; font-weight: 700; color: #6b7280; margin-bottom: 3px; }
+  .format-option.active .format-name { color: #1a73e8; }
+  .format-option .format-desc { font-size: 10px; color: #9ca3af; font-weight: 500; line-height: 1.3; }
+
   /* Mobile optimizations */
   @media (max-width: 600px) {
     .header { padding: 18px 16px 16px; }
@@ -383,6 +397,8 @@
     .court-option { padding: 14px 8px; }
     .points-pill { padding: 10px 18px; font-size: 15px; }
     .custom-points-input { font-size: 18px; width: 76px; padding: 10px; }
+    .format-option .format-name { font-size: 15px; }
+    .format-option .format-desc { font-size: 11px; }
   }
 </style>
 </head>
@@ -407,6 +423,8 @@ let state = {
   courts: 2,
   pointsPerMatch: 24,
   customPoints: false,
+  format: 'americano',
+  targetRounds: 8,
   rounds: [],
   scores: [],
   activeRound: 0,
@@ -438,6 +456,10 @@ async function init() {
       state.rounds = data.rounds;
       state.scores = data.scores;
       state.createdAt = data.createdAt;
+      state.format = data.format || 'americano';
+      // targetRounds only matters for mexicano, where the backend guarantees a
+      // valid value; americano never reads it, so a plain default is fine.
+      state.targetRounds = state.format === 'mexicano' ? data.targetRounds : 8;
       state.tournamentId = urlId;
       state.activeRound = 0;
       state.screen = 'tournament';
@@ -476,6 +498,7 @@ function goHome() {
   history.pushState(null, '', '/');
   state = {
     screen: 'setup', players: [], courts: 2, pointsPerMatch: 24, customPoints: false,
+    format: 'americano', targetRounds: 8,
     rounds: [], scores: [], activeRound: 0,
     tournamentId: null, editToken: null, isViewer: false, createdAt: null,
   };
@@ -528,6 +551,8 @@ async function createTournamentOnServer() {
         pointsPerMatch: state.pointsPerMatch,
         rounds: state.rounds,
         scores: state.scores,
+        format: state.format,
+        targetRounds: state.targetRounds,
       }),
     });
     if (!res.ok) throw new Error('API error');
@@ -644,6 +669,15 @@ function renderSetup(app) {
 
   app.innerHTML =
     '<div class="card">' +
+    '<div class="card-label">Format</div>' +
+    '<div class="format-selector">' +
+    ['americano', 'mexicano'].map(function(k) {
+      return '<div class="format-option' + (state.format === k ? ' active' : '') + '" onclick="setFormat(\'' + k + '\')">' +
+        '<div class="format-name">' + FORMATS[k].name + '</div>' +
+        '<div class="format-desc">' + FORMATS[k].desc + '</div></div>';
+    }).join('') +
+    '</div></div>' +
+    '<div class="card">' +
     '<div class="card-label">Players (' + state.players.length + ')</div>' +
     '<ul class="player-list">' +
     state.players.map(function(p, i) {
@@ -680,6 +714,13 @@ function renderSetup(app) {
     (state.customPoints ? '<div class="custom-points-row"><input class="custom-points-input" id="customPts" type="number" min="8" max="64" value="' + state.pointsPerMatch + '" onchange="state.pointsPerMatch=Math.max(8,Math.min(64,parseInt(this.value)||24));render()"><span class="custom-points-label">points</span></div>' : '') +
     (minPlayers ? '<div class="setup-note info">' + matchesPerRound + ' match' + (matchesPerRound > 1 ? 'es' : '') + ' per round &middot; ' + playersPerRound + ' playing' + (resting > 0 ? ' &middot; ' + resting + ' resting' : ' &middot; nobody rests') + '</div>' : '') +
     '</div>' +
+    (state.format === 'mexicano' ?
+      '<div class="card"><div class="card-label">Rounds</div>' +
+      '<div class="custom-points-row">' +
+      '<input class="custom-points-input" id="mexRounds" type="number" min="2" max="20" value="' + state.targetRounds + '" onchange="state.targetRounds=Math.max(2,Math.min(20,parseInt(this.value)||8));render()">' +
+      '<span class="custom-points-label">rounds total</span></div>' +
+      '<div class="setup-note info" style="text-align:left;margin-top:10px">Pairings are set each round from the live standings &middot; round 1 is balanced</div></div>'
+      : '') +
     '<button class="btn-start" ' + (!minPlayers ? 'disabled' : '') + ' onclick="startTournament()">Start Tournament</button>' +
     (!minPlayers ? '<div class="setup-note">Need at least 4 players</div>' : '');
 }
@@ -688,10 +729,9 @@ function renderTournament(app) {
   var rounds = state.rounds, scores = state.scores, activeRound = state.activeRound;
   var players = state.players, pointsPerMatch = state.pointsPerMatch, courts = state.courts;
   var isViewer = state.isViewer;
-  var totalMatches = scores.reduce(function(sum, rs) { return sum + rs.filter(function(s) { return s.team1 !== '' && s.team2 !== ''; }).length; }, 0);
+  var totalMatches = scores.reduce(function(sum, rs) { return sum + rs.filter(isMatchScored).length; }, 0);
   var totalPossible = scores.reduce(function(sum, rs) { return sum + rs.length; }, 0);
-  document.getElementById('headerInfo').textContent =
-    players.length + ' Players \u2022 ' + courts + ' Court' + (courts > 1 ? 's' : '') + ' \u2022 ' + rounds.length + ' Rounds';
+  document.getElementById('headerInfo').textContent = fmt().headerInfo(state);
 
   var standings = getStandings();
   var maxPts = Math.max.apply(null, standings.map(function(s) { return s.points; }).concat([1]));
@@ -711,7 +751,7 @@ function renderTournament(app) {
 
   html += '<div class="round-tabs">';
   for (var i = 0; i < rounds.length; i++) {
-    var d = scores[i].every(function(s) { return s.team1 !== '' && s.team2 !== ''; });
+    var d = isRoundScored(scores[i]);
     html += '<button class="round-tab ' + (i === activeRound ? 'active' : '') + ' ' + (d ? 'done' : '') + '" onclick="state.activeRound=' + i + ';render()">';
     if (d) html += '<span style="font-size:9px;display:block">&#x2713;</span>';
     html += 'R' + (i + 1) + '</button>';
@@ -724,7 +764,7 @@ function renderTournament(app) {
   for (var mi = 0; mi < r.matches.length; mi++) {
     var m = r.matches[mi];
     var s = rs[mi];
-    var done = s.team1 !== '' && s.team2 !== '';
+    var done = isMatchScored(s);
     html += '<div class="match-card">';
     html += '<span class="court-label c' + mi + '">Court ' + (mi + 1) + '</span>';
     html += '<div class="match-body">';
@@ -773,7 +813,7 @@ function renderTournament(app) {
     html += '<button class="btn-share" onclick="copyShareLink()">Copy Share Link</button>';
   }
   if (!isViewer) {
-    html += '<button class="btn-add-round" onclick="addBonusRound()">+ Add Bonus Round</button>';
+    html += fmt().actionHtml(state);
     html += '<button class="btn-back" onclick="confirmReset()">\u2190 Back to Setup</button>';
   }
   if (isViewer) {
@@ -788,7 +828,7 @@ function getStandings() {
   state.players.forEach(function(p) { pts[p] = 0; played[p] = 0; });
   state.scores.forEach(function(rs, i) {
     rs.forEach(function(s, mi) {
-      if (s.team1 !== '' && s.team2 !== '') {
+      if (isMatchScored(s)) {
         var m = state.rounds[i].matches[mi];
         m.team1.forEach(function(p) { pts[p] += Number(s.team1); played[p]++; });
         m.team2.forEach(function(p) { pts[p] += Number(s.team2); played[p]++; });
@@ -911,8 +951,111 @@ function removePlayer(idx) {
   render();
 }
 
+function setFormat(f) {
+  state.format = f;
+  render();
+}
+
+// --- Shared score/round helpers ---
+function isMatchScored(s) { return s.team1 !== '' && s.team2 !== ''; }
+function isRoundScored(rs) { return rs.every(isMatchScored); }
+
+function lastRoundComplete() {
+  var last = state.scores[state.scores.length - 1];
+  return last && isRoundScored(last);
+}
+
+// Tally how many times each player has rested across all rounds so far
+function restCounts() {
+  var rc = {};
+  state.players.forEach(function(p) { rc[p] = 0; });
+  state.rounds.forEach(function(r) {
+    r.rest.forEach(function(p) { if (p in rc) rc[p]++; });
+  });
+  return rc;
+}
+
+// Per-format behaviour (presentation + how rounds are built) lives here so a new
+// format is one entry, not scattered `state.format` checks across render/start.
+function headerBase(s) {
+  return s.players.length + ' Players • ' + s.courts + ' Court' + (s.courts > 1 ? 's' : '');
+}
+var FORMATS = {
+  americano: {
+    name: 'Americano',
+    desc: 'Rotating partners, full schedule',
+    headerInfo: function(s) { return headerBase(s) + ' • ' + s.rounds.length + ' Rounds'; },
+    buildInitialRounds: function(s) { return generateRounds(s.players, s.courts); },
+    actionHtml: function() { return '<button class="btn-add-round" onclick="addBonusRound()">+ Add Bonus Round</button>'; },
+  },
+  mexicano: {
+    name: 'Mexicano',
+    desc: 'Standings-based, round by round',
+    headerInfo: function(s) { return 'Mexicano • ' + headerBase(s) + ' • Round ' + s.rounds.length + '/' + s.targetRounds; },
+    // Only round 1 is fixed (balanced); later rounds seed from standings
+    buildInitialRounds: function(s) { return [generateRounds(s.players, s.courts)[0]]; },
+    actionHtml: function(s) {
+      if (s.rounds.length >= s.targetRounds) {
+        return '<div class="setup-note info" style="margin-top:12px">🏆 All ' + s.targetRounds + ' rounds done</div>';
+      }
+      var ready = lastRoundComplete();
+      var html = '<button class="btn-add-round"' + (ready ? '' : ' disabled') +
+        ' onclick="generateNextRound()">+ Generate Round ' + (s.rounds.length + 1) + ' of ' + s.targetRounds + '</button>';
+      if (!ready) html += '<div class="setup-note">Enter all scores to unlock the next round</div>';
+      return html;
+    },
+  },
+};
+function fmt() { return FORMATS[state.format] || FORMATS.americano; }
+
+// Mexicano: seed the next round from the live standings.
+// Top 4 ranked players share court 1, next 4 court 2, etc; within each
+// court of 4 ranked [1,2,3,4] the teams are 1+4 vs 2+3 (closest match-up).
+function generateMexicanoRound() {
+  var players = state.players;
+  var n = players.length;
+  var matchesPerRound = Math.min(state.courts, Math.floor(n / 4));
+  var playersPerRound = matchesPerRound * 4;
+  var numResting = n - playersPerRound;
+
+  // How often each player has rested so far (for fair rotation)
+  var restCount = restCounts();
+
+  var standings = getStandings(); // best first
+  var rankOf = {};
+  standings.forEach(function(s, i) { rankOf[s.name] = i; });
+
+  // Rest the players who have rested least; break ties by lower standing
+  var resters = players.slice().sort(function(a, b) {
+    return restCount[a] - restCount[b] || rankOf[b] - rankOf[a];
+  }).slice(0, numResting);
+  var restSet = {};
+  resters.forEach(function(p) { restSet[p] = true; });
+
+  // Rank the playing players, split into courts of 4, pair 1+4 vs 2+3
+  var playing = standings.map(function(s) { return s.name; })
+    .filter(function(p) { return !restSet[p]; });
+  var matches = [];
+  for (var c = 0; c < matchesPerRound; c++) {
+    var g = playing.slice(c * 4, c * 4 + 4);
+    matches.push({ team1: [g[0], g[3]], team2: [g[1], g[2]] });
+  }
+  return { matches: matches, rest: resters };
+}
+
+function generateNextRound() {
+  if (state.rounds.length >= state.targetRounds) return;
+  if (!lastRoundComplete()) { showToast('Enter all scores first'); return; }
+  var round = generateMexicanoRound();
+  state.rounds.push(round);
+  state.scores.push(round.matches.map(function() { return { team1: '', team2: '' }; }));
+  state.activeRound = state.rounds.length - 1;
+  render();
+  debouncedSave();
+}
+
 async function startTournament() {
-  state.rounds = generateRounds(state.players, state.courts);
+  state.rounds = fmt().buildInitialRounds(state);
   state.scores = state.rounds.map(function(r) { return r.matches.map(function() { return { team1: '', team2: '' }; }); });
   state.activeRound = 0;
   state.screen = 'tournament';
