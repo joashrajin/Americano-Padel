@@ -261,6 +261,29 @@
   .share-banner .share-hint { font-size: 10px; color: #6b7280; letter-spacing: 1px; font-weight: 500; }
   .share-banner .share-expiry { font-size: 10px; color: #9ca3af; margin-top: 4px; font-weight: 500; }
 
+  /* Admin code sharing */
+  .admin-share { margin-top: 12px; padding-top: 12px; border-top: 1px solid #bfdbfe; }
+  .admin-share-label { font-size: 10px; letter-spacing: 1.5px; color: #6b7280; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+  .admin-code { font-size: 22px; font-weight: 800; letter-spacing: 4px; color: #1a73e8; margin-bottom: 10px; }
+  .admin-actions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .admin-hint { font-size: 10px; color: #9ca3af; margin-top: 8px; font-weight: 500; }
+  .admin-join { display: flex; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #bfdbfe; }
+  .admin-input {
+    flex: 1; min-width: 0; padding: 8px 12px; background: #fff; border: 1.5px solid #e5e7eb;
+    border-radius: 8px; color: #1a1a2e; font-size: 14px; font-family: inherit; outline: none;
+    text-transform: lowercase;
+  }
+  .admin-input:focus { border-color: #1a73e8; }
+  .admin-input::placeholder { color: #9ca3af; text-transform: none; }
+  .btn-mini {
+    background: #fff; border: 1.5px solid #bfdbfe; border-radius: 8px; color: #1a73e8;
+    font-size: 11px; padding: 7px 12px; cursor: pointer; font-family: inherit; font-weight: 700;
+    white-space: nowrap; transition: background 0.15s;
+  }
+  .btn-mini:hover { background: #eff6ff; }
+  .btn-mini.danger { border-color: #fecaca; color: #ef4444; }
+  .btn-mini.danger:hover { background: #fef2f2; }
+
   .viewer-badge {
     display: inline-block; font-size: 10px; letter-spacing: 2px; padding: 4px 12px;
     border-radius: 6px; background: #fef3c7; color: #b45309; font-weight: 700; margin-bottom: 8px;
@@ -388,6 +411,9 @@
     .btn-back { padding: 12px; font-size: 13px; }
     .btn-refresh { padding: 14px; font-size: 13px; }
     .share-banner .share-url { font-size: 13px; }
+    .admin-input { font-size: 16px; padding: 10px 12px; }
+    .admin-code { font-size: 26px; }
+    .btn-mini { font-size: 13px; padding: 9px 14px; }
     .card-label { font-size: 12px; }
     .setup-note { font-size: 12px; }
     .court-label { font-size: 11px; }
@@ -430,6 +456,8 @@ let state = {
   activeRound: 0,
   tournamentId: null,
   editToken: null,
+  adminCode: null,
+  isCreator: false,
   isViewer: false,
   createdAt: null,
 };
@@ -444,6 +472,11 @@ function getTournamentIdFromUrl() {
 
 async function init() {
   var urlId = getTournamentIdFromUrl();
+  // Capture any admin-link code and strip it from the URL up front, so the shared
+  // secret never lingers in the address bar / history (even if the load fails)
+  var hashMatch = window.location.hash.match(/code=([a-z0-9]{4,10})/i);
+  var linkCode = hashMatch ? hashMatch[1] : null;
+  if (hashMatch) history.replaceState(null, '', urlId ? '/' + urlId : '/');
   if (urlId) {
     renderLoading();
     try {
@@ -471,7 +504,12 @@ async function init() {
         state.editToken = null;
         state.isViewer = true;
       }
+      state.adminCode = localStorage.getItem('americano_admin_' + urlId);
+      state.isCreator = localStorage.getItem('americano_role_' + urlId) === 'creator';
       render();
+
+      // Admin link (/<id>#code=XXXX): auto-join as admin once the tournament loads
+      if (linkCode && state.isViewer) joinAsAdmin(linkCode);
     } catch (e) {
       renderError('Tournament not found or expired.');
     }
@@ -500,7 +538,7 @@ function goHome() {
     screen: 'setup', players: [], courts: 2, pointsPerMatch: 24, customPoints: false,
     format: 'americano', targetRounds: 8,
     rounds: [], scores: [], activeRound: 0,
-    tournamentId: null, editToken: null, isViewer: false, createdAt: null,
+    tournamentId: null, editToken: null, adminCode: null, isCreator: false, isViewer: false, createdAt: null,
   };
   render();
 }
@@ -521,7 +559,7 @@ function showToast(msg) {
 async function saveTournamentToServer() {
   if (!state.tournamentId || !state.editToken) return;
   try {
-    await fetch('/api/tournament/' + state.tournamentId, {
+    var res = await fetch('/api/tournament/' + state.tournamentId, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -530,9 +568,28 @@ async function saveTournamentToServer() {
         rounds: state.rounds,
       }),
     });
+    if (res.status === 403) {
+      // Our credential was revoked (admin code reset) — drop back to view-only
+      revokeLocalAdmin();
+      showToast('Admin access ended — view only');
+      render();
+    } else if (!res.ok) {
+      showToast('Save failed — check connection');
+    }
   } catch (e) {
     showToast('Save failed — check connection');
   }
+}
+
+// Clear this device's edit credentials and revert to a read-only viewer
+function revokeLocalAdmin() {
+  localStorage.removeItem('americano_token_' + state.tournamentId);
+  localStorage.removeItem('americano_admin_' + state.tournamentId);
+  localStorage.removeItem('americano_role_' + state.tournamentId);
+  state.editToken = null;
+  state.adminCode = null;
+  state.isCreator = false;
+  state.isViewer = true;
 }
 
 function debouncedSave() {
@@ -559,9 +616,13 @@ async function createTournamentOnServer() {
     var data = await res.json();
     state.tournamentId = data.id;
     state.editToken = data.editToken;
+    state.adminCode = data.adminCode;
+    state.isCreator = true;
     state.createdAt = new Date().toISOString();
     state.isViewer = false;
     localStorage.setItem('americano_token_' + data.id, data.editToken);
+    localStorage.setItem('americano_admin_' + data.id, data.adminCode);
+    localStorage.setItem('americano_role_' + data.id, 'creator');
     history.pushState(null, '', '/' + data.id);
   } catch (e) {
     showToast('Offline mode — no sharing');
@@ -575,6 +636,77 @@ function copyShareLink() {
   }).catch(function() {
     showToast(url);
   });
+}
+
+function adminLinkUrl() {
+  return window.location.origin + '/' + state.tournamentId + '#code=' + state.adminCode;
+}
+
+function copyAdminCode() {
+  navigator.clipboard.writeText(state.adminCode).then(function() {
+    showToast('Admin code copied!');
+  }).catch(function() { showToast(state.adminCode); });
+}
+
+function copyAdminLink() {
+  var url = adminLinkUrl();
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('Admin link copied!');
+  }).catch(function() { showToast(url); });
+}
+
+function submitAdminCode() {
+  var el = document.getElementById('adminCodeInput');
+  if (el) joinAsAdmin(el.value);
+}
+
+// Validate an admin code (without modifying data) and, if valid, become an editor
+async function joinAsAdmin(code) {
+  code = (code || '').trim().toLowerCase();
+  if (!code) return;
+  try {
+    var res = await fetch('/api/tournament/' + state.tournamentId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editToken: code, verifyOnly: true }),
+    });
+    if (res.ok) {
+      localStorage.setItem('americano_token_' + state.tournamentId, code);
+      localStorage.setItem('americano_admin_' + state.tournamentId, code);
+      state.editToken = code;
+      state.adminCode = code;
+      state.isViewer = false;
+      showToast('Admin access granted');
+      render();
+    } else {
+      showToast('Invalid admin code');
+    }
+  } catch (e) {
+    showToast('Could not verify code');
+  }
+}
+
+// Rotate the shared admin code (creator only); old code/links stop working
+async function resetAdminCode() {
+  if (!confirm('Reset the admin code? Anyone using the old code or link will lose access.')) return;
+  try {
+    var res = await fetch('/api/tournament/' + state.tournamentId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editToken: state.editToken, rotateAdminCode: true }),
+    });
+    if (res.ok) {
+      var data = await res.json();
+      state.adminCode = data.adminCode;
+      localStorage.setItem('americano_admin_' + state.tournamentId, data.adminCode);
+      showToast('New admin code generated');
+      render();
+    } else {
+      showToast('Could not reset code');
+    }
+  } catch (e) {
+    showToast('Could not reset code');
+  }
 }
 
 function getExpiryText() {
@@ -746,6 +878,30 @@ function renderTournament(app) {
     html += '<div class="share-url">' + window.location.origin + '/' + state.tournamentId + '</div>';
     html += '<div class="share-hint">Share this link with players</div>';
     if (state.createdAt) html += '<div class="share-expiry">' + getExpiryText() + '</div>';
+
+    // The creator manages the admin code so co-organisers can add scores too.
+    // Only the creator sees/shares it (a joined admin's copy can go stale after a reset).
+    if (state.isCreator && state.adminCode) {
+      html += '<div class="admin-share">';
+      html += '<div class="admin-share-label">Admin code</div>';
+      html += '<div class="admin-code">' + esc(state.adminCode) + '</div>';
+      html += '<div class="admin-actions">';
+      html += '<button class="btn-mini" onclick="copyAdminCode()">Copy code</button>';
+      html += '<button class="btn-mini" onclick="copyAdminLink()">Copy admin link</button>';
+      html += '<button class="btn-mini danger" onclick="resetAdminCode()">Reset</button>';
+      html += '</div>';
+      html += '<div class="admin-hint">Others can enter this code to add scores</div>';
+      html += '</div>';
+    }
+
+    // Viewers can become an editor by entering the admin code
+    if (isViewer) {
+      html += '<div class="admin-join">';
+      html += '<input class="admin-input" id="adminCodeInput" placeholder="Admin code" maxlength="10" autocapitalize="off" autocomplete="off" spellcheck="false" onkeydown="if(event.key===\'Enter\')submitAdminCode()">';
+      html += '<button class="btn-mini" onclick="submitAdminCode()">Join as admin</button>';
+      html += '</div>';
+    }
+
     html += '</div>';
   }
 
@@ -1078,6 +1234,8 @@ function resetToSetup() {
   state.customPoints = false;
   state.tournamentId = null;
   state.editToken = null;
+  state.adminCode = null;
+  state.isCreator = false;
   state.isViewer = false;
   state.createdAt = null;
   history.pushState(null, '', '/');

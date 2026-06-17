@@ -14,6 +14,13 @@ function timingSafeEqual(a, b) {
   return a.length === b.length && result === 0;
 }
 
+function generateAdminCode() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // no ambiguous chars
+  const arr = new Uint8Array(8); // ~40 bits — not feasibly guessable online
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => chars[b % chars.length]).join('');
+}
+
 function jsonError(msg, status) {
   return new Response(JSON.stringify({ error: msg }), {
     status,
@@ -71,9 +78,9 @@ export async function onRequestPut(context) {
     return jsonError('Payload too large', 413);
   }
 
-  const { editToken, scores, rounds } = body;
+  const { editToken, scores, rounds, rotateAdminCode, verifyOnly } = body;
   if (!editToken || typeof editToken !== 'string') {
-    return jsonError('Missing editToken', 403);
+    return jsonError('Missing credential', 403);
   }
 
   const data = await context.env.TOURNAMENTS.get(`tournament:${id}`, 'json');
@@ -81,8 +88,28 @@ export async function onRequestPut(context) {
     return jsonError('Tournament not found or expired', 404);
   }
 
-  if (!timingSafeEqual(data.editToken, editToken)) {
+  // Authorize: the credential must match the creator's editToken or the shared admin code
+  const isCreator = !!(data.editToken && timingSafeEqual(data.editToken, editToken));
+  const isAdmin = isCreator || !!(data.adminCode && timingSafeEqual(data.adminCode, editToken));
+  if (!isAdmin) {
     return jsonError('Unauthorized', 403);
+  }
+
+  // verifyOnly: used by "join as admin" to validate a code without modifying data
+  if (verifyOnly) {
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Rotate the shared admin code (creator only) — revokes anyone using the old code
+  let newAdminCode;
+  if (rotateAdminCode) {
+    if (!isCreator) {
+      return jsonError('Only the tournament creator can reset the admin code', 403);
+    }
+    data.adminCode = generateAdminCode();
+    newAdminCode = data.adminCode;
   }
 
   // Validate and update scores
@@ -105,7 +132,7 @@ export async function onRequestPut(context) {
     expirationTtl: TTL, // refresh TTL on every update
   });
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify(newAdminCode ? { ok: true, adminCode: newAdminCode } : { ok: true }), {
     headers: { 'Content-Type': 'application/json' },
   });
 }
