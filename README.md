@@ -12,6 +12,7 @@ A lightweight web app for running Americano- and Mexicano-format padel tournamen
 - Two formats: Americano (fixed schedule) and Mexicano (standings-based)
 - Supports 4–20 players, 1–4 courts, with fair rest rotation
 - Share a live link — viewers see scores update without an account
+- Share an **admin code** (or one-tap admin link) so co-organisers can enter scores too; the creator can reset it to revoke access
 - Scores and standings persist for 7 days via Cloudflare KV
 - Works offline (local-only mode if the API is unreachable)
 

@@ -73,8 +73,8 @@ export async function onRequestGet(context) {
     return jsonError('Tournament not found or expired', 404);
   }
 
-  // Strip the edit token before sending to client
-  const { editToken, ...publicData } = data;
+  // Strip the edit token and shared admin code before sending to client
+  const { editToken, adminCode, ...publicData } = data;
   return new Response(JSON.stringify(publicData), {
     headers: { 'Content-Type': 'application/json' },
   });
@@ -152,15 +152,18 @@ export async function onRequestPost(context) {
   }
 
   const editToken = generateToken();
+  // Short, shareable code that grants score-editing rights to co-organizers
+  // (8 chars from a 31-char alphabet ≈ 40 bits — not feasibly guessable online)
+  const adminCode = generateId(8);
   const createdAt = new Date().toISOString();
 
-  const data = { editToken, players, courts, pointsPerMatch, rounds, scores, createdAt, format: fmt, targetRounds: mexRounds };
+  const data = { editToken, adminCode, players, courts, pointsPerMatch, rounds, scores, createdAt, format: fmt, targetRounds: mexRounds };
 
   await context.env.TOURNAMENTS.put(`tournament:${id}`, JSON.stringify(data), {
     expirationTtl: TTL,
   });
 
-  return new Response(JSON.stringify({ id, editToken }), {
+  return new Response(JSON.stringify({ id, editToken, adminCode }), {
     status: 201,
     headers: { 'Content-Type': 'application/json' },
   });
