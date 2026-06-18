@@ -509,7 +509,13 @@ async function init() {
       render();
 
       // Admin link (/<id>#code=XXXX): auto-join as admin once the tournament loads
-      if (linkCode && state.isViewer) joinAsAdmin(linkCode);
+      if (linkCode && state.isViewer) {
+        joinAsAdmin(linkCode);
+      } else if (!state.isViewer) {
+        // Editor: re-validate the stored credential against the server (catches a
+        // revoked code, syncs the current code, and confirms creator status)
+        validateOnLoad();
+      }
     } catch (e) {
       renderError('Tournament not found or expired.');
     }
@@ -671,11 +677,12 @@ async function joinAsAdmin(code) {
       body: JSON.stringify({ editToken: code, verifyOnly: true }),
     });
     if (res.ok) {
+      // A joined admin holds the code as their credential but doesn't manage it,
+      // so it isn't kept as the displayable code (only the creator shares it)
       localStorage.setItem('americano_token_' + state.tournamentId, code);
-      localStorage.setItem('americano_admin_' + state.tournamentId, code);
       state.editToken = code;
-      state.adminCode = code;
       state.isViewer = false;
+      state.isCreator = false;
       showToast('Admin access granted');
       render();
     } else {
@@ -686,9 +693,11 @@ async function joinAsAdmin(code) {
   }
 }
 
-// Rotate the shared admin code (creator only); old code/links stop working
+// Create the admin code (first time, e.g. an older tournament) or rotate it
+// (revoking the old one). Creator only.
 async function resetAdminCode() {
-  if (!confirm('Reset the admin code? Anyone using the old code or link will lose access.')) return;
+  var wasReset = !!state.adminCode;
+  if (wasReset && !confirm('Reset the admin code? Anyone using the old code or link will lose access.')) return;
   try {
     var res = await fetch('/api/tournament/' + state.tournamentId, {
       method: 'PUT',
@@ -699,14 +708,53 @@ async function resetAdminCode() {
       var data = await res.json();
       state.adminCode = data.adminCode;
       localStorage.setItem('americano_admin_' + state.tournamentId, data.adminCode);
-      showToast('New admin code generated');
+      showToast(wasReset ? 'New admin code generated' : 'Admin code created');
       render();
     } else {
-      showToast('Could not reset code');
+      showToast('Could not update code');
     }
   } catch (e) {
-    showToast('Could not reset code');
+    showToast('Could not update code');
   }
+}
+
+// On load, re-validate an editor's stored credential against the server. A 403
+// means it was revoked (drop to view-only). Otherwise sync creator status and,
+// for the creator, the current code — keeping a 2nd device or an older
+// (pre-feature) tournament correct without ever exposing the code to others.
+async function validateOnLoad() {
+  if (!state.tournamentId || !state.editToken) return;
+  try {
+    var res = await fetch('/api/tournament/' + state.tournamentId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ editToken: state.editToken, verifyOnly: true }),
+    });
+    if (res.status === 403) {
+      revokeLocalAdmin();
+      showToast('Admin access ended — view only');
+      render();
+      return;
+    }
+    if (!res.ok) return;
+    var d = await res.json();
+    var changed = false;
+    if (typeof d.isCreator === 'boolean' && d.isCreator !== state.isCreator) {
+      state.isCreator = d.isCreator;
+      if (d.isCreator) localStorage.setItem('americano_role_' + state.tournamentId, 'creator');
+      changed = true;
+    }
+    if (d.isCreator) {
+      var code = d.adminCode || null;
+      if (code !== state.adminCode) {
+        state.adminCode = code;
+        if (code) localStorage.setItem('americano_admin_' + state.tournamentId, code);
+        else localStorage.removeItem('americano_admin_' + state.tournamentId);
+        changed = true;
+      }
+    }
+    if (changed) render();
+  } catch (e) { /* offline — keep current view */ }
 }
 
 function getExpiryText() {
@@ -881,16 +929,21 @@ function renderTournament(app) {
 
     // The creator manages the admin code so co-organisers can add scores too.
     // Only the creator sees/shares it (a joined admin's copy can go stale after a reset).
-    if (state.isCreator && state.adminCode) {
+    if (state.isCreator) {
       html += '<div class="admin-share">';
-      html += '<div class="admin-share-label">Admin code</div>';
-      html += '<div class="admin-code">' + esc(state.adminCode) + '</div>';
-      html += '<div class="admin-actions">';
-      html += '<button class="btn-mini" onclick="copyAdminCode()">Copy code</button>';
-      html += '<button class="btn-mini" onclick="copyAdminLink()">Copy admin link</button>';
-      html += '<button class="btn-mini danger" onclick="resetAdminCode()">Reset</button>';
-      html += '</div>';
-      html += '<div class="admin-hint">Others can enter this code to add scores</div>';
+      if (state.adminCode) {
+        html += '<div class="admin-share-label">Admin code</div>';
+        html += '<div class="admin-code">' + esc(state.adminCode) + '</div>';
+        html += '<div class="admin-actions">';
+        html += '<button class="btn-mini" onclick="copyAdminCode()">Copy code</button>';
+        html += '<button class="btn-mini" onclick="copyAdminLink()">Copy admin link</button>';
+        html += '<button class="btn-mini danger" onclick="resetAdminCode()">Reset</button>';
+        html += '</div>';
+        html += '<div class="admin-hint">Others can enter this code to add scores</div>';
+      } else {
+        html += '<div class="admin-hint" style="margin-bottom:8px">Let others add scores with a shared code</div>';
+        html += '<button class="btn-mini" onclick="resetAdminCode()">Create admin code</button>';
+      }
       html += '</div>';
     }
 
