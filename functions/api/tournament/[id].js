@@ -95,9 +95,16 @@ export async function onRequestPut(context) {
     return jsonError('Unauthorized', 403);
   }
 
-  // verifyOnly: used by "join as admin" to validate a code without modifying data
+  // verifyOnly: validate a credential without modifying data. Used by "join as
+  // admin" and by editors on page load to confirm access is still valid. The
+  // creator (and only the creator) also gets the current admin code back, so a
+  // second device stays in sync after a rotate. adminCode is null if none yet.
   if (verifyOnly) {
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({
+      ok: true,
+      isCreator,
+      adminCode: isCreator ? (data.adminCode || null) : undefined,
+    }), {
       headers: { 'Content-Type': 'application/json' },
     });
   }
