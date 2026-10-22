@@ -2,15 +2,17 @@
 // GET /api/tournament?id=abc123 — load a tournament
 
 import {
-  MAX_PAYLOAD,
   generateId,
   generateToken,
   json,
   jsonError,
+  readJsonBody,
+  isValidPlayerName,
   validateCourts,
   validatePointsPerMatch,
   validateRounds,
   validateScores,
+  scoresMatchRounds,
   loadTournament,
   idInUse,
   insertTournament,
@@ -34,12 +36,8 @@ export async function GET(request, { env }) {
 }
 
 export async function POST(request, { env }) {
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return jsonError('Invalid JSON', 400);
-  }
+  const { body, error } = await readJsonBody(request);
+  if (error) return error;
 
   const { players, courts, pointsPerMatch, rounds, scores, format, targetRounds } = body;
 
@@ -69,8 +67,11 @@ export async function POST(request, { env }) {
   if (players.length > 20 || players.length < 4) {
     return jsonError('Players must be 4-20', 400);
   }
-  if (players.some(p => typeof p !== 'string' || p.length > 30 || p.length === 0 || /[<>"'`\x00-\x1f]/.test(p))) {
+  if (!players.every(isValidPlayerName)) {
     return jsonError('Invalid player name', 400);
+  }
+  if (new Set(players).size !== players.length) {
+    return jsonError('Duplicate player name', 400);
   }
 
   // Validate courts and points
@@ -82,17 +83,14 @@ export async function POST(request, { env }) {
   }
 
   // Validate rounds and scores structure
-  if (!validateRounds(rounds)) {
+  if (!validateRounds(rounds, players)) {
     return jsonError('Invalid rounds structure', 400);
   }
   if (!validateScores(scores)) {
     return jsonError('Invalid scores structure', 400);
   }
-
-  // Limit total payload size
-  const payloadSize = JSON.stringify(body).length;
-  if (payloadSize > MAX_PAYLOAD) {
-    return jsonError('Payload too large', 413);
+  if (!scoresMatchRounds(scores, rounds)) {
+    return jsonError("Scores don't match rounds", 400);
   }
 
   // Generate unique ID with collision check

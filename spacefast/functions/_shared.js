@@ -40,6 +40,55 @@ export function jsonError(msg, status) {
   return json({ error: msg }, status);
 }
 
+// Reads a JSON object body, refusing anything over MAX_PAYLOAD bytes before it
+// is parsed. Content-Length is checked first, and the stream is capped as well
+// in case the header is missing or wrong. Returns { body } or { error }.
+export async function readJsonBody(request) {
+  if (Number(request.headers.get('content-length')) > MAX_PAYLOAD) {
+    return { error: jsonError('Payload too large', 413) };
+  }
+  const chunks = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_PAYLOAD) {
+        await reader.cancel();
+        return { error: jsonError('Payload too large', 413) };
+      }
+      chunks.push(value);
+    }
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  let body;
+  try {
+    body = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return { error: jsonError('Invalid JSON', 400) };
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: jsonError('Invalid JSON', 400) };
+  }
+  return { body };
+}
+
+// Player names are used as keys in per-player tallies, so prototype names such
+// as __proto__ or constructor are refused along with markup characters.
+// public/index.html applies the same rule before a tournament is created.
+export function isValidPlayerName(p) {
+  return typeof p === 'string' && p.length > 0 && p.length <= 30 &&
+    !/[<>"'`\x00-\x1f]/.test(p) &&
+    !Object.prototype.hasOwnProperty.call(Object.prototype, p);
+}
+
 export function validateCourts(courts) {
   return Number.isInteger(courts) && courts >= 1 && courts <= 4;
 }
@@ -61,20 +110,30 @@ export function validateScores(scores) {
   );
 }
 
-export function validateRounds(rounds) {
+// Every name in a round must be one of the tournament's players, and nobody can
+// appear twice in the same round (on both teams, or playing and resting).
+export function validateRounds(rounds, players) {
   if (!Array.isArray(rounds) || rounds.length > 30) return false;
-  return rounds.every(r =>
-    r && typeof r === 'object' &&
-    Array.isArray(r.matches) && Array.isArray(r.rest) &&
-    r.matches.length <= 4 &&
-    r.matches.every(m =>
+  const roster = new Set(players);
+  return rounds.every(r => {
+    if (!r || typeof r !== 'object' || !Array.isArray(r.matches) || !Array.isArray(r.rest) ||
+        r.matches.length > 4) return false;
+    const teamsOk = r.matches.every(m =>
       m && Array.isArray(m.team1) && Array.isArray(m.team2) &&
-      m.team1.length === 2 && m.team2.length === 2 &&
-      m.team1.every(p => typeof p === 'string' && p.length <= 30) &&
-      m.team2.every(p => typeof p === 'string' && p.length <= 30)
-    ) &&
-    r.rest.every(p => typeof p === 'string' && p.length <= 30)
-  );
+      m.team1.length === 2 && m.team2.length === 2
+    );
+    if (!teamsOk) return false;
+    const names = r.matches.flatMap(m => [...m.team1, ...m.team2]).concat(r.rest);
+    return names.every(p => typeof p === 'string' && roster.has(p)) &&
+      new Set(names).size === names.length;
+  });
+}
+
+// One score entry per match in every round. Viewers compute standings by
+// reading rounds[i].matches[j] for each scores[i][j], so a mismatch breaks the page.
+export function scoresMatchRounds(scores, rounds) {
+  return scores.length === rounds.length &&
+    scores.every((rs, i) => rs.length === rounds[i].matches.length);
 }
 
 // --- Storage: one row per tournament in the Space's database (env.DB) ---
