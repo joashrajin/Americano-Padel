@@ -151,7 +151,7 @@
     background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--radius);
   }
   .choice:hover { border-color: var(--ink-3); }
-  .choice[aria-checked="true"] { border-color: var(--court); box-shadow: inset 0 0 0 1.5px var(--court); background: var(--court-tint); }
+  .choice[aria-pressed="true"] { border-color: var(--court); box-shadow: inset 0 0 0 1.5px var(--court); background: var(--court-tint); }
   .choice-name { display: block; font-size: 18px; font-weight: 700; }
   .choice-desc { display: block; margin-top: 2px; font-size: 15px; line-height: 1.35; color: var(--ink-2); }
 
@@ -171,6 +171,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     min-height: 50px; font-size: 18px; font-weight: 500; border-bottom: 1px solid var(--line);
   }
+  .player-list li span { min-width: 0; overflow-wrap: anywhere; }
   .icon-btn {
     width: 40px; height: 40px; flex: none; display: grid; place-items: center; cursor: pointer;
     background: none; border: 0; border-radius: 8px; color: var(--ink-3);
@@ -272,6 +273,7 @@
   }
   .standings td { padding: 10px 8px; font-size: 18px; border-bottom: 1px solid var(--line); }
   .standings .num { text-align: right; }
+  .standings .name { overflow-wrap: anywhere; }
   .standings .rank { width: 36px; color: var(--ink-3); font-weight: 600; }
   .standings .pts { font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1; }
   .standings .pts.is-zero { color: var(--ink-3); }
@@ -289,12 +291,13 @@
   }
   .site-footer a { color: var(--court); font-weight: 600; }
   .toast {
-    position: fixed; left: 50%; bottom: 24px; z-index: 20; max-width: calc(100% - 32px);
+    position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20;
+    width: fit-content; max-width: 528px; margin: 0 auto;
     padding: 12px 18px; border-radius: 10px; background: var(--ink); color: var(--paper);
-    font-weight: 600; opacity: 0; pointer-events: none;
-    transform: translate(-50%, 8px); transition: opacity 0.2s, transform 0.2s;
+    font-weight: 600; overflow-wrap: anywhere; opacity: 0; pointer-events: none;
+    transform: translateY(8px); transition: opacity 0.2s, transform 0.2s;
   }
-  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.show { opacity: 1; transform: none; pointer-events: auto; user-select: text; }
 
   @media (prefers-reduced-motion: reduce) {
     .toast { transition: none; }
@@ -313,7 +316,7 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#dcf04a"/><path d="M5.2 4.4c3 3.1 3 12.1 0 15.2M18.8 4.4c-3 3.1-3 12.1 0 15.2" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <img class="brand-mark" src="/favicon.svg" alt="" width="24" height="24">
       <span class="brand-name">Americano Padel</span>
     </div>
     <p class="topbar-meta" id="headerInfo"></p>
@@ -429,17 +432,20 @@ function goHome() {
   render();
 }
 
+// Safe for element text and quoted attribute values alike
 function esc(str) {
-  var d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function showToast(msg) {
+var toastTimer = null;
+function showToast(msg, ms) {
   var el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(function() { el.classList.remove('show'); }, 2000);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, ms || 2000);
 }
 
 async function saveTournamentToServer() {
@@ -529,31 +535,24 @@ async function createTournamentOnServer() {
   }
 }
 
-function copyShareLink() {
-  var url = window.location.origin + '/' + state.tournamentId;
-  navigator.clipboard.writeText(url).then(function() {
-    showToast('Link copied!');
-  }).catch(function() {
-    showToast(url);
-  });
+function shareLinkUrl() {
+  return window.location.origin + '/' + state.tournamentId;
 }
 
 function adminLinkUrl() {
-  return window.location.origin + '/' + state.tournamentId + '#code=' + state.adminCode;
+  return shareLinkUrl() + '#code=' + state.adminCode;
 }
 
-function copyAdminCode() {
-  navigator.clipboard.writeText(state.adminCode).then(function() {
-    showToast('Admin code copied!');
-  }).catch(function() { showToast(state.adminCode); });
+// When the clipboard is unavailable, show the text long enough to copy by hand
+function copyText(text, doneMsg) {
+  navigator.clipboard.writeText(text).then(function() {
+    showToast(doneMsg);
+  }).catch(function() { showToast(text, 8000); });
 }
 
-function copyAdminLink() {
-  var url = adminLinkUrl();
-  navigator.clipboard.writeText(url).then(function() {
-    showToast('Admin link copied!');
-  }).catch(function() { showToast(url); });
-}
+function copyShareLink() { copyText(shareLinkUrl(), 'Link copied!'); }
+function copyAdminCode() { copyText(state.adminCode, 'Admin code copied!'); }
+function copyAdminLink() { copyText(adminLinkUrl(), 'Admin link copied!'); }
 
 function submitAdminCode() {
   var el = document.getElementById('adminCodeInput');
@@ -651,20 +650,14 @@ async function validateOnLoad() {
   } catch (e) { /* offline — keep current view */ }
 }
 
-function getExpiryText() {
-  if (!state.createdAt) return '';
-  var created = new Date(state.createdAt);
-  var expiry = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
-  var now = new Date();
-  var daysLeft = Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)));
-  if (daysLeft === 0) return 'Expires today';
-  if (daysLeft === 1) return 'Expires tomorrow';
-  return 'Expires in ' + daysLeft + ' days';
+// Each match needs 4 players, and there's one match per court in use
+function courtsInUse(playerCount, courts) {
+  return Math.min(courts, Math.floor(playerCount / 4));
 }
 
 function generateRounds(players, courts) {
   var n = players.length;
-  var matchesPerRound = Math.min(courts, Math.floor(n / 4));
+  var matchesPerRound = courtsInUse(n, courts);
   var playersPerRound = matchesPerRound * 4;
   var pairs = [];
   for (var i = 0; i < n; i++)
@@ -728,22 +721,33 @@ function generateRounds(players, courts) {
   return rounds;
 }
 
-function render() {
+// Controls carry a data-key so focus survives the full re-render; pass a key to
+// move focus somewhere specific (e.g. the field a blur was heading to).
+function render(focusKey) {
+  var active = document.activeElement;
+  var key = focusKey || (active && active.getAttribute && active.getAttribute('data-key'));
   var app = document.getElementById('app');
   if (state.screen === 'setup') renderSetup(app);
   else renderTournament(app);
+  if (!key) return;
+  var target = app.querySelector('[data-key="' + key + '"]');
+  if (!target && key.indexOf('remove-') === 0) target = document.getElementById('newPlayer');
+  if (target && !target.disabled) target.focus();
 }
 
-var ICON_X = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+var POINT_PRESETS = [16, 21, 24, 32];
+var ICON_X ='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
 function renderSetup(app) {
   document.getElementById('headerInfo').textContent = '';
   var n = state.players.length;
   var minPlayers = n >= 4;
   var maxCourts = Math.floor(n / 4);
-  var matchesPerRound = Math.min(state.courts, maxCourts);
+  var matchesPerRound = courtsInUse(n, state.courts);
   var playersPerRound = matchesPerRound * 4;
   var resting = n - playersPerRound;
+  // A non-preset value (e.g. after "Back to setup") still has to be visible
+  var customPoints = state.customPoints || POINT_PRESETS.indexOf(state.pointsPerMatch) < 0;
 
   app.innerHTML =
     '<h1 class="page-title">New tournament</h1>' +
@@ -752,9 +756,9 @@ function renderSetup(app) {
 
     '<section class="form-group">' +
     '<h2 class="group-title" id="formatTitle">Format</h2>' +
-    '<div class="choice-row" role="radiogroup" aria-labelledby="formatTitle">' +
+    '<div class="choice-row" role="group" aria-labelledby="formatTitle">' +
     ['americano', 'mexicano'].map(function(k) {
-      return '<button type="button" class="choice" role="radio" aria-checked="' + (state.format === k) + '" onclick="setFormat(\'' + k + '\')">' +
+      return '<button type="button" class="choice" data-key="format-' + k + '" aria-pressed="' + (state.format === k) + '" onclick="setFormat(\'' + k + '\')">' +
         '<span class="choice-name">' + FORMATS[k].name + '</span>' +
         '<span class="choice-desc">' + FORMATS[k].desc + '</span></button>';
     }).join('') +
@@ -765,7 +769,7 @@ function renderSetup(app) {
     '<ul class="player-list">' +
     state.players.map(function(p, i) {
       return '<li><span>' + esc(p) + '</span>' +
-        '<button type="button" class="icon-btn" aria-label="Remove ' + esc(p) + '" onclick="removePlayer(' + i + ')">' + ICON_X + '</button></li>';
+        '<button type="button" class="icon-btn" data-key="remove-' + i + '" aria-label="Remove ' + esc(p) + '" onclick="removePlayer(' + i + ')">' + ICON_X + '</button></li>';
     }).join('') +
     '</ul>' +
     '<div class="input-row">' +
@@ -779,7 +783,7 @@ function renderSetup(app) {
     '<h2 class="group-title" id="courtsTitle">Courts</h2>' +
     '<div class="segmented" role="group" aria-labelledby="courtsTitle">' +
     [1, 2, 3, 4].map(function(c) {
-      return '<button type="button" class="seg" aria-pressed="' + (maxCourts > 0 && state.courts === c) + '"' + (c > maxCourts ? ' disabled' : '') +
+      return '<button type="button" class="seg" data-key="courts-' + c + '" aria-pressed="' + (maxCourts > 0 && state.courts === c) + '"' + (c > maxCourts ? ' disabled' : '') +
         ' onclick="state.courts=' + c + ';render()">' + c + '</button>';
     }).join('') +
     '</div>' +
@@ -792,13 +796,13 @@ function renderSetup(app) {
     '<section class="form-group">' +
     '<h2 class="group-title" id="pointsTitle">Points per match</h2>' +
     '<div class="segmented" role="group" aria-labelledby="pointsTitle">' +
-    [16, 21, 24, 32].map(function(p) {
-      return '<button type="button" class="seg" aria-pressed="' + (state.pointsPerMatch === p && !state.customPoints) + '" onclick="state.pointsPerMatch=' + p + ';state.customPoints=false;render()">' + p + '</button>';
+    POINT_PRESETS.map(function(p) {
+      return '<button type="button" class="seg" data-key="points-' + p + '" aria-pressed="' + (state.pointsPerMatch === p && !customPoints) + '" onclick="state.pointsPerMatch=' + p + ';state.customPoints=false;render()">' + p + '</button>';
     }).join('') +
-    '<button type="button" class="seg" aria-pressed="' + state.customPoints + '" onclick="state.customPoints=true;render()">Custom</button>' +
+    '<button type="button" class="seg" data-key="points-custom" aria-pressed="' + customPoints + '" onclick="state.customPoints=true;render()">Custom</button>' +
     '</div>' +
-    (state.customPoints
-      ? '<div class="inline-field"><input class="input input-sm" id="customPts" type="number" inputmode="numeric" min="8" max="64" value="' + state.pointsPerMatch + '" aria-label="Custom points per match" onchange="state.pointsPerMatch=Math.max(8,Math.min(64,parseInt(this.value)||24));render()"><span>points</span></div>'
+    (customPoints
+      ? '<div class="inline-field"><input class="input input-sm" id="customPts" data-key="custom-points" type="number" inputmode="numeric" min="8" max="64" value="' + state.pointsPerMatch + '" aria-label="Custom points per match" onchange="state.pointsPerMatch=Math.max(8,Math.min(64,parseInt(this.value)||24));render()"><span>points</span></div>'
       : '') +
     '<p class="hint">The two scores in a match add up to this.</p>' +
     '</section>' +
@@ -806,7 +810,7 @@ function renderSetup(app) {
     (state.format === 'mexicano'
       ? '<section class="form-group">' +
         '<label class="group-title" for="mexRounds">Rounds</label>' +
-        '<div class="inline-field"><input class="input input-sm" id="mexRounds" type="number" inputmode="numeric" min="2" max="20" value="' + state.targetRounds + '" onchange="state.targetRounds=Math.max(2,Math.min(20,parseInt(this.value)||8));render()"><span>rounds</span></div>' +
+        '<div class="inline-field"><input class="input input-sm" id="mexRounds" data-key="mex-rounds" type="number" inputmode="numeric" min="2" max="20" value="' + state.targetRounds + '" onchange="state.targetRounds=Math.max(2,Math.min(20,parseInt(this.value)||8));render()"><span>rounds</span></div>' +
         '<p class="hint">Round 1 mixes everyone evenly. After that, each round is paired from the standings.</p>' +
         '</section>'
       : '') +
@@ -832,10 +836,12 @@ function renderTournament(app) {
 
   function teamRow(team, value, key, mi, won) {
     var label = 'Score for ' + team[0] + ' and ' + team[1];
+    // Read-only scores follow the team names in reading order, so no label is needed
     var score = isViewer
-      ? '<span class="score score-static" aria-label="' + esc(label) + '">' + (value !== '' ? value : '–') + '</span>'
-      : '<input class="score" type="number" inputmode="numeric" min="0" max="' + pointsPerMatch + '" value="' + value + '" placeholder="–" aria-label="' + esc(label) + '"' +
-        ' oninput="onScoreInput(' + activeRound + ',' + mi + ',\'' + key + '\',this.value)" onblur="onScoreBlur(' + activeRound + ',' + mi + ',\'' + key + '\')">';
+      ? '<span class="score score-static">' +
+        (value !== '' ? value : '<span aria-hidden="true">–</span><span class="visually-hidden">no score yet</span>') + '</span>'
+      : '<input class="score" data-key="score-' + activeRound + '-' + mi + '-' + key + '" type="number" inputmode="numeric" min="0" max="' + pointsPerMatch + '" value="' + value + '" placeholder="–" aria-label="' + esc(label) + '"' +
+        ' oninput="onScoreInput(' + activeRound + ',' + mi + ',\'' + key + '\',this.value)" onblur="onScoreBlur(' + activeRound + ',' + mi + ',\'' + key + '\',event)">';
     return '<div class="team-row' + (won ? ' is-winner' : '') + '">' +
       '<span class="team-names">' + esc(team[0]) + ' <span class="amp">&amp;</span> ' + esc(team[1]) + '</span>' +
       (won ? '<span class="visually-hidden">Won</span>' : '') + score + '</div>';
@@ -846,15 +852,15 @@ function renderTournament(app) {
   if (state.tournamentId) {
     html += '<div class="share-line"><div class="share-text">' +
       (isViewer ? '<span class="badge">View only</span>' : '') +
-      '<p class="share-url">' + esc(window.location.host + '/' + state.tournamentId) + '</p>' +
-      '<p class="share-meta">Live scores link' + (state.createdAt ? ', ' + getExpiryText().toLowerCase() : '') + '</p>' +
+      '<p class="share-url">' + esc(shareLinkUrl().replace(/^https?:\/\//, '')) + '</p>' +
+      '<p class="share-meta">Live scores link, kept for 7 days after the last score</p>' +
       '</div><button type="button" class="btn btn-secondary" onclick="copyShareLink()">Copy link</button></div>';
   }
 
   html += '<nav class="round-nav" aria-label="Rounds">';
   for (var i = 0; i < rounds.length; i++) {
     var d = isRoundScored(scores[i]);
-    html += '<button type="button" class="round-tab' + (d ? ' is-done' : '') + '"' + (i === activeRound ? ' aria-current="true"' : '') +
+    html += '<button type="button" class="round-tab' + (d ? ' is-done' : '') + '" data-key="round-' + i + '"' + (i === activeRound ? ' aria-current="true"' : '') +
       ' aria-label="Round ' + (i + 1) + (d ? ', all scores in' : '') + '" onclick="state.activeRound=' + i + ';render()">' + (i + 1) + '</button>';
   }
   html += '</nav>';
@@ -874,9 +880,9 @@ function renderTournament(app) {
   }
 
   var roundActions = '';
-  if (!isViewer) roundActions += '<button type="button" class="btn btn-text danger" onclick="clearRound(' + activeRound + ')">Clear scores</button>';
+  if (!isViewer) roundActions += '<button type="button" class="btn btn-text danger" data-key="clear-round" onclick="clearRound(' + activeRound + ')">Clear scores</button>';
   if (activeRound < rounds.length - 1) {
-    roundActions += '<button type="button" class="btn btn-text btn-next" onclick="state.activeRound=' + (activeRound + 1) + ';render()">Next round</button>';
+    roundActions += '<button type="button" class="btn btn-text btn-next" data-key="next-round" onclick="state.activeRound=' + (activeRound + 1) + ';render()">Next round</button>';
   }
   if (roundActions) html += '<div class="round-actions">' + roundActions + '</div>';
   if (!isViewer) html += '<div class="format-action">' + fmt().actionHtml(state) + '</div>';
@@ -891,7 +897,7 @@ function renderTournament(app) {
   standings.forEach(function(st, i) {
     var leader = topPoints > 0 && st.points === topPoints;
     html += '<tr' + (leader ? ' class="is-leader"' : '') + '>' +
-      '<td class="rank">' + (i + 1) + '</td><td>' + esc(st.name) + '</td>' +
+      '<td class="rank">' + (i + 1) + '</td><td class="name">' + esc(st.name) + '</td>' +
       '<td class="num">' + st.played + '</td><td class="num pts' + (st.points === 0 ? ' is-zero' : '') + '">' + st.points + '</td></tr>';
   });
   html += '</tbody></table>';
@@ -957,7 +963,7 @@ function onScoreInput(roundIdx, matchIdx, team, value) {
   state.scores[roundIdx][matchIdx][team] = num;
 }
 
-function onScoreBlur(roundIdx, matchIdx, team) {
+function onScoreBlur(roundIdx, matchIdx, team, event) {
   // On blur: clamp, compute complement, re-render
   var s = state.scores[roundIdx][matchIdx];
   var val = s[team];
@@ -966,7 +972,9 @@ function onScoreBlur(roundIdx, matchIdx, team) {
   s[team] = val;
   var other = team === 'team1' ? 'team2' : 'team1';
   s[other] = state.pointsPerMatch - val;
-  render();
+  // Keep focus on the field the user was moving to (e.g. tabbing to the next score)
+  var next = event && event.relatedTarget;
+  render(next && next.getAttribute && next.getAttribute('data-key'));
   debouncedSave();
 }
 
@@ -979,7 +987,7 @@ function clearRound(idx) {
 function addBonusRound() {
   var players = state.players;
   var n = players.length;
-  var matchesPerRound = Math.min(state.courts, Math.floor(n / 4));
+  var matchesPerRound = courtsInUse(n, state.courts);
   if (n < 4) return;
   var usedPartners = new Set();
   state.rounds.forEach(function(r) {
@@ -1122,7 +1130,7 @@ var FORMATS = {
     headerInfo: function(s) { return 'Americano · ' + headerBase(s) + ' · ' + s.rounds.length + ' rounds'; },
     totalRounds: function(s) { return s.rounds.length; },
     buildInitialRounds: function(s) { return generateRounds(s.players, s.courts); },
-    actionHtml: function() { return '<button type="button" class="btn btn-secondary" onclick="addBonusRound()">Add a bonus round</button>'; },
+    actionHtml: function() { return '<button type="button" class="btn btn-secondary" data-key="format-action" onclick="addBonusRound()">Add a bonus round</button>'; },
   },
   mexicano: {
     name: 'Mexicano',
@@ -1137,7 +1145,7 @@ var FORMATS = {
         return '<p class="note">All ' + s.targetRounds + ' rounds played. These are the final standings.</p>';
       }
       var ready = lastRoundComplete();
-      var html = '<button type="button" class="btn btn-primary"' + (ready ? '' : ' disabled') +
+      var html = '<button type="button" class="btn btn-primary" data-key="format-action"' + (ready ? '' : ' disabled') +
         ' onclick="generateNextRound()">Pair round ' + (s.rounds.length + 1) + ' of ' + s.targetRounds + '</button>';
       if (!ready) html += '<p class="hint">Enter every score in round ' + s.rounds.length + ' to pair the next one.</p>';
       return html;
@@ -1152,7 +1160,7 @@ function fmt() { return FORMATS[state.format] || FORMATS.americano; }
 function generateMexicanoRound() {
   var players = state.players;
   var n = players.length;
-  var matchesPerRound = Math.min(state.courts, Math.floor(n / 4));
+  var matchesPerRound = courtsInUse(n, state.courts);
   var playersPerRound = matchesPerRound * 4;
   var numResting = n - playersPerRound;
 
@@ -1224,7 +1232,12 @@ function resetToSetup() {
   render();
 }
 
-window.addEventListener('popstate', function() { init(); });
+// Reload only when the tournament in the path changes; a fragment-only change
+// (the skip link, an anchor) must not refetch and reset the open tournament.
+window.addEventListener('popstate', function() {
+  if (getTournamentIdFromUrl() === state.tournamentId) return;
+  init();
+});
 init();
 </script>
 </body>
