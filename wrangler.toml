@@ -1,7 +1,4 @@
+# Cloudflare Pages now only redirects americano-padel.pages.dev to Spacefast.
 name = "americano-padel"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = "public"
-
-[[kv_namespaces]]
-binding = "TOURNAMENTS"
-id = "5f11cfd3ec7a4d44b638b7f3090cea44"
+pages_build_output_dir = "cloudflare-redirect"
