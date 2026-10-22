@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npx wrangler pages dev public/",
-    "deploy": "npx wrangler pages deploy public/",
-    "build:spacefast": "node scripts/build-spacefast.mjs",
-    "deploy:spacefast": "npm run build:spacefast && npx -y spacefast@latest publish dist/spacefast --api-url https://api.spacefast.com"
+    "build": "node scripts/build-spacefast.mjs",
+    "deploy": "npm run build && npx -y spacefast@latest publish dist/spacefast --api-url https://api.spacefast.com",
+    "deploy:redirect": "npx wrangler pages deploy cloudflare-redirect --branch main"
   },
   "devDependencies": {
     "wrangler": "^3"

@@ -5,7 +5,8 @@
   "meta": {
     "title": "Americano Padel — Free Tournament Organizer",
     "description": "Organize Padel Americano and Mexicano tournaments for free. Generate rounds, track scores, share live leaderboards.",
-    "image": "/og-image.png"
+    "image": "/og-image.png",
+    "favicon": "/favicon.svg"
   },
   "crons": [{ "path": "/api/cleanup", "schedule": "daily" }]
 }
