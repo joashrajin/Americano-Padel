@@ -1,0 +1,11 @@
+{
+  "$schema": "https://spacefast.com/schemas/sf.json",
+  "space": "spc_e9215bfd4b424f22a0fbc2e451344c3b",
+  "name": "Americano Padel",
+  "meta": {
+    "title": "Americano Padel — Free Tournament Organizer",
+    "description": "Organize Padel Americano and Mexicano tournaments for free. Generate rounds, track scores, share live leaderboards.",
+    "image": "/og-image.png"
+  },
+  "crons": [{ "path": "/api/cleanup", "schedule": "daily" }]
+}

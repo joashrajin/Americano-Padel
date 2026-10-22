@@ -13,26 +13,31 @@ A lightweight web app for running Americano- and Mexicano-format padel tournamen
 - Supports 4–20 players, 1–4 courts, with fair rest rotation
 - Share a live link — viewers see scores update without an account
 - Share an **admin code** (or one-tap admin link) so co-organisers can enter scores too; the creator can reset it to revoke access
-- Scores and standings persist for 7 days via Cloudflare KV
+- Scores and standings persist for 7 days after the last update
 - Works offline (local-only mode if the API is unreachable)
 
 ## Stack
 
-- [Cloudflare Pages](https://pages.cloudflare.com/) — static hosting + serverless functions
-- [Cloudflare KV](https://developers.cloudflare.com/kv/) — tournament persistence
-- Vanilla JS, no framework
+The app is moving from Cloudflare to [Spacefast](https://spacefast.com). Both deploy from this repo until the switch.
+
+- Front end: `public/index.html`, vanilla JS with no framework, shared by both hosts
+- **Spacefast** (`spacefast/`): [Functions](https://spacefast.com/docs/functions) for the API, the Space's database for tournaments, and a daily cron that deletes expired ones
+- **Cloudflare** (`functions/`, `wrangler.toml`): Pages Functions and KV, the current production site
 
 ## Development
 
 ```bash
 npm install
-npm run dev       # local dev server via wrangler
+npm run dev       # local dev server via wrangler (Cloudflare)
 ```
+
+Spacefast doesn't run functions locally (`sf dev` refuses them), so test API changes on a published version.
 
 ## Deploy
 
 ```bash
-npm run deploy    # deploys to Cloudflare Pages
+npm run deploy:spacefast   # builds dist/spacefast and publishes it to the americano-padel Space
+npm run deploy             # deploys to Cloudflare Pages
 ```
 
-Requires a Cloudflare account and a KV namespace bound as `TOURNAMENTS` in `wrangler.toml`.
+`deploy:spacefast` copies `public/` and `spacefast/` into `dist/spacefast` and publishes it. The target Space is pinned in `spacefast/sf.jsonc`, and you need to be signed in with `npx spacefast login`. The Cloudflare deploy needs a Cloudflare account and the `TOURNAMENTS` KV namespace bound in `wrangler.toml`.

@@ -574,7 +574,7 @@ async function saveTournamentToServer() {
         rounds: state.rounds,
       }),
     });
-    if (res.status === 403) {
+    if (await isRevoked(res)) {
       // Our credential was revoked (admin code reset) — drop back to view-only
       revokeLocalAdmin();
       showToast('Admin access ended — view only');
@@ -584,6 +584,20 @@ async function saveTournamentToServer() {
     }
   } catch (e) {
     showToast('Save failed — check connection');
+  }
+}
+
+// A 403 means our credential was revoked only when it is this API's own
+// "Unauthorized" answer to a joined admin. The creator's token is never revoked,
+// and a 403 from the host itself (an access gate, an expired session) must not
+// wipe credentials that can't be recovered.
+async function isRevoked(res) {
+  if (res.status !== 403 || state.isCreator) return false;
+  try {
+    var body = await res.clone().json();
+    return body.error === 'Unauthorized';
+  } catch (e) {
+    return false;
   }
 }
 
@@ -730,7 +744,7 @@ async function validateOnLoad() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ editToken: state.editToken, verifyOnly: true }),
     });
-    if (res.status === 403) {
+    if (await isRevoked(res)) {
       revokeLocalAdmin();
       showToast('Admin access ended — view only');
       render();
