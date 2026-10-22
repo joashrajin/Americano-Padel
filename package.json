@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "npx wrangler pages dev public/",
-    "deploy": "npx wrangler pages deploy public/"
+    "deploy": "npx wrangler pages deploy public/",
+    "build:spacefast": "node scripts/build-spacefast.mjs",
+    "deploy:spacefast": "npm run build:spacefast && npx -y spacefast@latest publish dist/spacefast --api-url https://api.spacefast.com"
   },
   "devDependencies": {
     "wrangler": "^3"

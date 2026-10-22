@@ -1,0 +1,4 @@
+# Tournament links (/<id>) load the app shell, which reads the id from the URL.
+# One segment only, so it never shadows the /api/* routes; real files such as
+# /og-image.png are served as themselves.
+/:id    /index.html    200
