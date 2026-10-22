@@ -64,9 +64,12 @@
     overflow: hidden;
   }
   .card-label {
+    display: block;
     font-size: 11px; color: #6b7280; letter-spacing: 1.5px; margin-bottom: 12px;
     font-weight: 700; text-transform: uppercase;
   }
+  .field-error { margin-top: 8px; font-size: 13px; color: #b91c1c; font-weight: 500; }
+  .field-error:empty { display: none; }
 
   /* Player list */
   .player-list { list-style: none; }
@@ -872,7 +875,7 @@ function renderSetup(app) {
     }).join('') +
     '</div></div>' +
     '<div class="card">' +
-    '<div class="card-label">Players (' + state.players.length + ')</div>' +
+    '<label class="card-label" for="newPlayer">Players (' + state.players.length + ')</label>' +
     '<ul class="player-list">' +
     state.players.map(function(p, i) {
       return '<li class="player-item"><span>' + esc(p) + '</span>' +
@@ -880,9 +883,11 @@ function renderSetup(app) {
     }).join('') +
     '</ul>' +
     '<div class="add-row">' +
-    '<input class="add-input" id="newPlayer" placeholder="Add player name..." onkeydown="if(event.key===\'Enter\')addPlayer()">' +
+    '<input class="add-input" id="newPlayer" placeholder="Add player name..." maxlength="30" autocomplete="off" aria-describedby="newPlayerError" onkeydown="if(event.key===\'Enter\')addPlayer()" oninput="clearPlayerError(this)">' +
     '<button class="btn-add" onclick="addPlayer()">+ Add</button>' +
-    '</div></div>' +
+    '</div>' +
+    '<p class="field-error" id="newPlayerError" role="alert"></p>' +
+    '</div>' +
     '<div class="card">' +
     '<div class="card-label">Courts</div>' +
     '<div class="court-selector">' +
@@ -1047,7 +1052,7 @@ function renderTournament(app) {
 }
 
 function getStandings() {
-  var pts = {}, played = {};
+  var pts = Object.create(null), played = Object.create(null);
   state.players.forEach(function(p) { pts[p] = 0; played[p] = 0; });
   state.scores.forEach(function(rs, i) {
     rs.forEach(function(s, mi) {
@@ -1099,7 +1104,7 @@ function addBonusRound() {
       usedPartners.add(m.team2.slice().sort().join('|'));
     });
   });
-  var playCount = {};
+  var playCount = Object.create(null);
   players.forEach(function(p) { playCount[p] = 0; });
   state.rounds.forEach(function(r) {
     r.matches.forEach(function(m) {
@@ -1153,18 +1158,41 @@ function addBonusRound() {
   debouncedSave();
 }
 
+// Must match isValidPlayerName in spacefast/functions/_shared.js, otherwise the
+// server rejects the tournament and the app silently drops to offline mode.
+function playerNameError(name) {
+  if (name.length > 30) return 'Names can be up to 30 characters.';
+  if (/[<>"'`\x00-\x1f]/.test(name)) return 'Names can’t contain < > " \' or `.';
+  if (Object.prototype.hasOwnProperty.call(Object.prototype, name)) return '“' + name + '” can’t be used as a name. Try another.';
+  if (state.players.includes(name)) return name + ' is already in the list.';
+  return '';
+}
+
+function clearPlayerError(input) {
+  input.removeAttribute('aria-invalid');
+  document.getElementById('newPlayerError').textContent = '';
+}
+
 function addPlayer() {
   var input = document.getElementById('newPlayer');
   var name = input.value.trim();
-  if (name && !state.players.includes(name)) {
-    state.players.push(name);
-    // Auto-set courts to max available when hitting a new threshold (4, 8, 12, 16)
-    var maxCourts = Math.floor(state.players.length / 4);
-    if (state.players.length % 4 === 0 && maxCourts >= 1 && maxCourts <= 4) {
-      state.courts = maxCourts;
-    }
-    render();
+  if (!name) return;
+  var error = playerNameError(name);
+  if (error) {
+    input.setAttribute('aria-invalid', 'true');
+    document.getElementById('newPlayerError').textContent = error;
+    input.focus();
+    return;
   }
+  state.players.push(name);
+  // Auto-set courts to max available when hitting a new threshold (4, 8, 12, 16)
+  var maxCourts = Math.floor(state.players.length / 4);
+  if (state.players.length % 4 === 0 && maxCourts >= 1 && maxCourts <= 4) {
+    state.courts = maxCourts;
+  }
+  render();
+  // render() rebuilds the form; keep the field focused for the next name
+  document.getElementById('newPlayer').focus();
 }
 
 function removePlayer(idx) {
@@ -1190,7 +1218,7 @@ function lastRoundComplete() {
 
 // Tally how many times each player has rested across all rounds so far
 function restCounts() {
-  var rc = {};
+  var rc = Object.create(null);
   state.players.forEach(function(p) { rc[p] = 0; });
   state.rounds.forEach(function(r) {
     r.rest.forEach(function(p) { if (p in rc) rc[p]++; });
@@ -1245,14 +1273,14 @@ function generateMexicanoRound() {
   var restCount = restCounts();
 
   var standings = getStandings(); // best first
-  var rankOf = {};
+  var rankOf = Object.create(null);
   standings.forEach(function(s, i) { rankOf[s.name] = i; });
 
   // Rest the players who have rested least; break ties by lower standing
   var resters = players.slice().sort(function(a, b) {
     return restCount[a] - restCount[b] || rankOf[b] - rankOf[a];
   }).slice(0, numResting);
-  var restSet = {};
+  var restSet = Object.create(null);
   resters.forEach(function(p) { restSet[p] = true; });
 
   // Rank the playing players, split into courts of 4, pair 1+4 vs 2+3

@@ -1,13 +1,14 @@
 // PUT /api/tournament/:id — update tournament scores
 
 import {
-  MAX_PAYLOAD,
   generateId,
   json,
   jsonError,
+  readJsonBody,
   timingSafeEqual,
   validateRounds,
   validateScores,
+  scoresMatchRounds,
   loadTournament,
   saveTournament,
 } from '../../_shared.js';
@@ -20,18 +21,8 @@ export async function PUT(request, { params, env }) {
     return jsonError('Invalid tournament ID', 400);
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return jsonError('Invalid JSON', 400);
-  }
-
-  // Payload size check
-  const payloadSize = JSON.stringify(body).length;
-  if (payloadSize > MAX_PAYLOAD) {
-    return jsonError('Payload too large', 413);
-  }
+  const { body, error } = await readJsonBody(request);
+  if (error) return error;
 
   const { editToken, scores, rounds, rotateAdminCode, verifyOnly } = body;
   if (!editToken || typeof editToken !== 'string') {
@@ -82,10 +73,15 @@ export async function PUT(request, { params, env }) {
 
   // Validate and update rounds (for bonus rounds)
   if (rounds !== undefined) {
-    if (!validateRounds(rounds)) {
+    if (!validateRounds(rounds, data.players)) {
       return jsonError('Invalid rounds structure', 400);
     }
     data.rounds = rounds;
+  }
+
+  // Checked on the result, since either half may be sent alone
+  if ((scores !== undefined || rounds !== undefined) && !scoresMatchRounds(data.scores, data.rounds)) {
+    return jsonError("Scores don't match rounds", 400);
   }
 
   // Saving refreshes the 7-day expiry, like the old KV TTL
