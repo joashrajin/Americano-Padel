@@ -2,6 +2,8 @@
 
 A lightweight web app for running Americano- and Mexicano-format padel tournaments. Create a tournament, share a link, and track scores live — no accounts required.
 
+**Use it:** https://americano-padel.space.fast/
+
 ## Formats
 
 - **Americano** — partners rotate every round on a fixed schedule generated up front, maximising pairing variety.
@@ -14,6 +16,8 @@ A lightweight web app for running Americano- and Mexicano-format padel tournamen
 - Share a live link — viewers see scores update without an account
 - Share an **admin code** (or one-tap admin link) so co-organisers can enter scores too; the creator can reset it to revoke access
 - Scores and standings are kept for 7 days after the last update
+- Built for phones courtside: a scoreboard layout with big score fields, and dark mode that follows the device setting
+- Works with a keyboard and screen readers
 - Works offline (local-only mode if the API is unreachable)
 
 ## Stack
@@ -43,3 +47,22 @@ npm run deploy:redirect   # redeploys the pages.dev redirect (rarely needed)
 ```
 
 `deploy` needs you signed in with `npx spacefast login`; the target Space is pinned in `spacefast/sf.jsonc`. `deploy:redirect` needs a Cloudflare login (`npx wrangler login`).
+
+To check a change before it goes live, publish a preview version. It gets its own address and leaves the live site alone:
+
+```bash
+npm run build
+npx spacefast publish dist/spacefast --target preview
+```
+
+Previews are private: open the version URL it prints while signed in to Spacefast.
+
+## Traffic
+
+Spacefast counts requests, views and unique visitors at its edge, with no script in the page:
+
+```bash
+npx spacefast analytics --space americano-padel --window 30d
+```
+
+The same numbers are under **Settings → Stats** for the Space in the Spacefast dashboard.
