@@ -290,8 +290,12 @@
     font-size: 15px; color: var(--ink-3); border-top: 1px solid var(--line);
   }
   .site-footer a { color: var(--court); font-weight: 600; }
-  .site-footer span { white-space: nowrap; }
-  .site-footer span + span::before { content: '·'; margin-right: 0.4em; }
+  /* Every item has a leading separator; the row is shifted left by its width and
+     clipped, so the separator disappears whenever an item starts a line. */
+  .footer-clip { overflow: hidden; }
+  .footer-items { display: flex; flex-wrap: wrap; margin-left: -1.2em; }
+  .footer-items > span { white-space: nowrap; }
+  .footer-items > span::before { content: '·'; display: inline-block; width: 1.2em; text-align: center; }
   .toast {
     position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20;
     width: fit-content; max-width: 528px; margin: 0 auto;
@@ -327,9 +331,11 @@
 
 <main id="app" tabindex="-1"></main>
 <footer class="site-footer">
-  <span>Developed by <a href="https://joash.blog" target="_blank" rel="noopener">Joash</a></span>
-  <span><a href="https://github.com/joashrajin/Americano-Padel" target="_blank" rel="noopener">Source on GitHub</a></span>
-  <span>Powered by <a href="https://spacefast.com" target="_blank" rel="noopener">Spacefast</a></span>
+  <div class="footer-clip"><p class="footer-items">
+    <span>Developed by <a href="https://joash.blog" target="_blank" rel="noopener">Joash</a></span>
+    <span><a href="https://github.com/joashrajin/Americano-Padel" target="_blank" rel="noopener">Source on GitHub</a></span>
+    <span>Powered by <a href="https://spacefast.com" target="_blank" rel="noopener">Spacefast</a></span>
+  </p></div>
 </footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
