@@ -66,3 +66,16 @@ npx spacefast analytics --space americano-padel --window 30d
 ```
 
 The same numbers are under **Settings → Stats** for the Space in the Spacefast dashboard.
+
+## Android app (Google Play)
+
+`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) (Bubblewrap) that wraps the live site (package `com.joashrajin.americanopadel`). The web app ships a manifest (`public/manifest.webmanifest`), icons and a service worker so it is installable and falls back offline.
+
+```bash
+cd android
+export ANDROID_HOME=/path/to/sdk BUBBLEWRAP_KEYSTORE_PASSWORD=... BUBBLEWRAP_KEY_PASSWORD=...
+./gradlew bundleRelease   # -> app/build/outputs/bundle/release/app-release.aab (unsigned)
+jarsigner -keystore android.keystore -sigalg SHA256withRSA -digestalg SHA-256 app/build/outputs/bundle/release/app-release.aab americano
+```
+
+Bump `appVersionCode` in `android/twa-manifest.json` and `android/app/build.gradle` for every Play upload. `android.keystore` is git-ignored: back it up and keep its password safe. The full-screen (no URL bar) TWA needs `public/.well-known/assetlinks.json` to contain the SHA-256 of the key that signs the installed app — with Play App Signing, add the **App signing key** fingerprint from Play Console → Setup → App integrity, then redeploy.

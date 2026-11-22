@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.joashrajin.americanopadel",
+    "sha256_cert_fingerprints": [
+      "DD:4A:23:8A:8D:E9:70:99:05:D3:0C:95:3A:A6:44:66:73:34:2A:75:60:E1:34:1A:C4:CD:7E:99:72:08:49:4A"
+    ]
+  }
+}]

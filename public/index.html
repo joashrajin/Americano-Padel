@@ -26,6 +26,8 @@
 
 <!-- Favicon -->
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
 
 <link rel="canonical" href="https://americano-padel.space.fast/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1251,6 +1253,9 @@ window.addEventListener('popstate', function() {
   init();
 });
 init();
+</script>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
 </script>
 </body>
 </html>

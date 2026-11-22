@@ -7,3 +7,7 @@ node_modules/
 .claude/
 dist/
 .spacefast/
+android/*.keystore
+android/build/
+android/.gradle/
+android/app/build/
