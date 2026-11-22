@@ -11,7 +11,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(r => { caches.open(CACHE).then(c => c.put('/index.html', r.clone())); return r; })
+    e.respondWith(fetch(req).then(r => { if (r.ok && r.type === 'basic') { const copy = r.clone(); caches.open(CACHE).then(c => c.put('/index.html', copy)); } return r; })
       .catch(() => caches.match('/index.html')));
   }
 });

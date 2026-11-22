@@ -21,7 +21,7 @@
     "alias": "americano"
   },
   "appVersionName": "2",
-  "appVersionCode": 1,
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://americano-padel.space.fast/manifest.webmanifest",
@@ -40,5 +40,5 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "2"
 }
