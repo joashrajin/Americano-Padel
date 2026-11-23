@@ -21,7 +21,7 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'com.joashrajin.americanopadel',
+    applicationId: 'com.htidev.padelamericano',
     hostName: 'americano-padel.space.fast', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'Americano Padel', // The application name.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "com.joashrajin.americanopadel"
+    namespace "com.htidev.padelamericano"
     defaultConfig {
-        applicationId "com.joashrajin.americanopadel"
+        applicationId "com.htidev.padelamericano"
         minSdkVersion 24
         targetSdkVersion 36
         versionCode 2
