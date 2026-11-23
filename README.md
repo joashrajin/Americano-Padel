@@ -69,7 +69,7 @@ The same numbers are under **Settings → Stats** for the Space in the Spacefast
 
 ## Android app (Google Play)
 
-`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) (Bubblewrap) that wraps the live site (package `com.joashrajin.americanopadel`). The web app ships a manifest (`public/manifest.webmanifest`), icons and a service worker so it is installable and falls back offline.
+`android/` is a [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) (Bubblewrap) that wraps the live site (package `com.htidev.padelamericano`). The web app ships a manifest (`public/manifest.webmanifest`), icons and a service worker so it is installable and falls back offline.
 
 ```bash
 cd android
