@@ -35,5 +35,4 @@ No ads. No sign-up. Tournaments are removed 7 days after the last update.
 
 ## Assets (this folder / outputs)
 - Icon 512×512: android/store_icon.png
-- Feature graphic 1024×500: feature-graphic-1024x500.png
-- Phone screenshots: screenshot-*.png
+- Feature graphic 1024×500, phone screenshots 1082×1922: store/assets/
