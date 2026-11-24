@@ -78,4 +78,4 @@ export ANDROID_HOME=/path/to/sdk BUBBLEWRAP_KEYSTORE_PASSWORD=... BUBBLEWRAP_KEY
 jarsigner -keystore android.keystore -sigalg SHA256withRSA -digestalg SHA-256 app/build/outputs/bundle/release/app-release.aab americano
 ```
 
-Bump `appVersionCode` in `android/twa-manifest.json` and `android/app/build.gradle` for every Play upload. `android.keystore` is git-ignored: back it up and keep its password safe. The full-screen (no URL bar) TWA needs `public/.well-known/assetlinks.json` to contain the SHA-256 of the key that signs the installed app — with Play App Signing, add the **App signing key** fingerprint from Play Console → Setup → App integrity, then redeploy.
+Bump `appVersionCode` (and `appVersion`) in `android/twa-manifest.json` for every Play upload (`build.gradle` reads it from there). `android.keystore` is git-ignored: back it up and keep its password safe. The full-screen (no URL bar) TWA needs `public/.well-known/assetlinks.json` to contain the SHA-256 of the key that signs the installed app — with Play App Signing, add the **App signing key** fingerprint from Play Console → Setup → App integrity, then redeploy.

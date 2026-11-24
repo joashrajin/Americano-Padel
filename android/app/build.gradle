@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonSlurper
 import groovy.xml.MarkupBuilder
 
 plugins {
     id 'com.android.application'
 }
+
+// Single source of truth for the version: twa-manifest.json (bump it for every Play upload).
+def twaVersion = new JsonSlurper().parse(file('../twa-manifest.json'))
 
 def twaManifest = [
     applicationId: 'com.htidev.padelamericano',
@@ -57,8 +61,8 @@ android {
         applicationId "com.htidev.padelamericano"
         minSdkVersion 24
         targetSdkVersion 36
-        versionCode 3
-        versionName "3"
+        versionCode twaVersion.appVersionCode
+        versionName String.valueOf(twaVersion.appVersionCode)
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
