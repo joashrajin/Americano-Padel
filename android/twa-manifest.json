@@ -20,8 +20,8 @@
     "path": "./android.keystore",
     "alias": "americano"
   },
-  "appVersionName": "2",
-  "appVersionCode": 2,
+  "appVersionName": "3",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://americano-padel.space.fast/manifest.webmanifest",
@@ -30,7 +30,7 @@
   "alphaDependencies": {
     "enabled": false
   },
-  "enableSiteSettingsShortcut": false,
+  "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://americano-padel.space.fast/",
@@ -40,5 +40,5 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "2"
+  "appVersion": "3"
 }
