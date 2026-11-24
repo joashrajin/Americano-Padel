@@ -11,3 +11,4 @@ android/*.keystore
 android/build/
 android/.gradle/
 android/app/build/
+android/app/src/main/res/xml/shortcuts.xml
