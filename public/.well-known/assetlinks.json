@@ -4,7 +4,8 @@
     "namespace": "android_app",
     "package_name": "com.htidev.padelamericano",
     "sha256_cert_fingerprints": [
-      "DD:4A:23:8A:8D:E9:70:99:05:D3:0C:95:3A:A6:44:66:73:34:2A:75:60:E1:34:1A:C4:CD:7E:99:72:08:49:4A"
+      "DD:4A:23:8A:8D:E9:70:99:05:D3:0C:95:3A:A6:44:66:73:34:2A:75:60:E1:34:1A:C4:CD:7E:99:72:08:49:4A",
+      "7A:1F:15:BA:50:81:70:37:9E:93:60:3C:FF:D6:C0:BE:6A:5A:C1:71:2F:A9:DF:F0:8B:56:7B:71:6C:70:71:FC"
     ]
   }
 }]
