@@ -286,6 +286,41 @@
   /* Tournament: admin code */
   .admin-code { font-family: var(--display); font-size: 40px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.1; margin-bottom: 12px; }
 
+  /* Android app: top switcher & past games */
+  .app-tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin-bottom: 24px; padding: 4px;
+    background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--radius);
+  }
+  .app-tab {
+    height: 44px; padding: 0 12px; cursor: pointer;
+    background: none; border: 0; border-radius: 7px;
+    font-size: 16px; font-weight: 700; color: var(--ink-2);
+  }
+  .app-tab:hover { color: var(--ink); }
+  .app-tab[aria-pressed="true"] { background: var(--court); color: var(--court-ink); }
+
+  .history-list { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+  .history-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .history-title { font-size: 18px; font-weight: 700; line-height: 1.3; }
+  .history-date { font-size: 14px; color: var(--ink-3); font-weight: 500; margin-top: 2px; }
+  .history-meta { margin-top: 6px; font-size: 15px; color: var(--ink-2); }
+  .history-leader { margin-top: 8px; font-size: 15px; font-weight: 600; color: var(--ink); }
+  .history-leader .pill {
+    display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 5px;
+    background: var(--ball-tint); color: var(--ink); font-size: 13px; font-weight: 700;
+  }
+  .history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .history-actions .btn { height: 40px; font-size: 15px; padding: 0 14px; }
+  .history-empty {
+    margin-top: 20px; padding: 24px 18px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink-2);
+  }
+
   /* Footer and toast */
   .site-footer {
     width: 100%; max-width: 560px; margin: 0 auto; padding: 20px 16px 36px;
@@ -342,6 +377,36 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+// Detect when running inside the Play Store Android TWA (com.htidev.padelamericano).
+// Chrome sets document.referrer to android-app://<package>/ on TWA launch; we cache
+// that in sessionStorage for reloads/SPA navigation and pair localStorage with
+// standalone display-mode so deep links into the installed app are recognised too,
+// while normal mobile/desktop browser tabs stay completely untouched.
+var ANDROID_PACKAGE = 'com.htidev.padelamericano';
+var TWA_SESSION_KEY = 'americano_twa_session';
+var TWA_INSTALLED_KEY = 'americano_twa_installed';
+var HISTORY_KEY = 'americano_history_v1';
+var MAX_HISTORY = 100;
+
+function detectAndroidApp() {
+  try {
+    if (document.referrer && document.referrer.indexOf('android-app://' + ANDROID_PACKAGE) === 0) {
+      sessionStorage.setItem(TWA_SESSION_KEY, '1');
+      localStorage.setItem(TWA_INSTALLED_KEY, '1');
+      return true;
+    }
+    if (sessionStorage.getItem(TWA_SESSION_KEY) === '1') return true;
+    var standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    if (standalone && localStorage.getItem(TWA_INSTALLED_KEY) === '1') return true;
+  } catch (e) {}
+  return false;
+}
+
+var isAndroidApp = detectAndroidApp();
+if (isAndroidApp && navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(function() {});
+}
+
 let state = {
   screen: 'setup',
   players: [],
@@ -354,6 +419,8 @@ let state = {
   scores: [],
   activeRound: 0,
   tournamentId: null,
+  localId: null,
+  isArchived: false,
   editToken: null,
   adminCode: null,
   isCreator: false,
@@ -362,6 +429,151 @@ let state = {
 };
 
 let saveTimer = null;
+
+function loadHistory() {
+  if (!isAndroidApp) return [];
+  try {
+    var raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    var list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeHistory(list) {
+  if (!isAndroidApp) return;
+  var trimmed = list.slice(0, MAX_HISTORY);
+  while (trimmed.length > 0) {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+      return;
+    } catch (e) {
+      trimmed.pop();
+    }
+  }
+  try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
+}
+
+function findHistoryEntry(key) {
+  if (!key) return null;
+  var list = loadHistory();
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].key === key || list[i].tournamentId === key) return list[i];
+  }
+  return null;
+}
+
+function saveCurrentToHistory(previousKey) {
+  if (!isAndroidApp || !state.rounds.length) return;
+  if (!state.tournamentId && !state.localId) {
+    state.localId = 'local_' + Date.now();
+  }
+  var key = state.tournamentId || state.localId;
+  var now = new Date().toISOString();
+  var existing = findHistoryEntry(key) || (previousKey ? findHistoryEntry(previousKey) : null);
+  var entry = {
+    key: key,
+    tournamentId: state.tournamentId || null,
+    format: state.format || 'americano',
+    targetRounds: state.format === 'mexicano' ? state.targetRounds : null,
+    players: state.players.slice(),
+    courts: state.courts,
+    pointsPerMatch: state.pointsPerMatch,
+    rounds: JSON.parse(JSON.stringify(state.rounds)),
+    scores: JSON.parse(JSON.stringify(state.scores)),
+    createdAt: state.createdAt || (existing && existing.createdAt) || now,
+    updatedAt: now,
+    isViewer: !!state.isViewer,
+  };
+  var list = loadHistory().filter(function(item) {
+    return item.key !== key && (!previousKey || item.key !== previousKey);
+  });
+  list.unshift(entry);
+  list.sort(function(a, b) {
+    return String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || ''));
+  });
+  writeHistory(list);
+}
+
+function deleteHistoryEntry(key) {
+  if (!isAndroidApp) return;
+  if (!confirm('Remove this game from your history?')) return;
+  var list = loadHistory().filter(function(item) { return item.key !== key; });
+  writeHistory(list);
+  render();
+  showToast('Removed from past games');
+}
+
+function loadArchivedEntry(entry, archived) {
+  state.players = (entry.players || []).slice();
+  state.courts = entry.courts || 2;
+  state.pointsPerMatch = entry.pointsPerMatch || 24;
+  state.rounds = JSON.parse(JSON.stringify(entry.rounds || []));
+  state.scores = JSON.parse(JSON.stringify(entry.scores || []));
+  state.createdAt = entry.createdAt || null;
+  state.format = entry.format || 'americano';
+  state.targetRounds = state.format === 'mexicano' ? (entry.targetRounds || 8) : 8;
+  state.tournamentId = entry.tournamentId || null;
+  state.localId = entry.tournamentId ? null : entry.key;
+  state.isArchived = !!archived;
+  state.activeRound = 0;
+  state.screen = 'tournament';
+  if (archived) {
+    state.editToken = null;
+    state.adminCode = null;
+    state.isCreator = false;
+    state.isViewer = true;
+  } else {
+    // Offline-only local game (never created on server): remains editable locally
+    state.editToken = null;
+    state.adminCode = null;
+    state.isCreator = true;
+    state.isViewer = false;
+  }
+  render();
+}
+
+function openHistoryGame(key) {
+  var entry = findHistoryEntry(key);
+  if (!entry) return;
+  if (entry.tournamentId) {
+    history.pushState({ fromHistory: true }, '', '/' + entry.tournamentId);
+    init();
+  } else {
+    history.pushState({ fromHistory: true, localKey: entry.key }, '', '/');
+    loadArchivedEntry(entry, false);
+  }
+}
+
+function playAgainFromHistory(key) {
+  var entry = findHistoryEntry(key);
+  if (!entry) return;
+  history.pushState(null, '', '/');
+  state = {
+    screen: 'setup',
+    players: (entry.players || []).slice(),
+    courts: entry.courts || 2,
+    pointsPerMatch: entry.pointsPerMatch || 24,
+    customPoints: POINT_PRESETS.indexOf(entry.pointsPerMatch || 24) < 0,
+    format: entry.format || 'americano',
+    targetRounds: entry.format === 'mexicano' ? (entry.targetRounds || 8) : 8,
+    rounds: [], scores: [], activeRound: 0,
+    tournamentId: null, localId: null, isArchived: false,
+    editToken: null, adminCode: null, isCreator: false, isViewer: false, createdAt: null,
+  };
+  render();
+  showToast('Players loaded — tap Start when ready');
+}
+
+function openPastGames() {
+  if (!isAndroidApp) return;
+  if (window.location.pathname !== '/') history.pushState(null, '', '/');
+  state.screen = 'history';
+  state.isArchived = false;
+  render();
+}
 
 function getTournamentIdFromUrl() {
   var path = window.location.pathname.replace(/^\/+|\/+$/g, '');
@@ -393,6 +605,8 @@ async function init() {
       // valid value; americano never reads it, so a plain default is fine.
       state.targetRounds = state.format === 'mexicano' ? data.targetRounds : 8;
       state.tournamentId = urlId;
+      state.localId = null;
+      state.isArchived = false;
       state.activeRound = 0;
       state.screen = 'tournament';
       var storedToken = localStorage.getItem('americano_token_' + urlId);
@@ -405,6 +619,7 @@ async function init() {
       }
       state.adminCode = localStorage.getItem('americano_admin_' + urlId);
       state.isCreator = localStorage.getItem('americano_role_' + urlId) === 'creator';
+      saveCurrentToHistory();
       render();
 
       // Admin link (/<id>#code=XXXX): auto-join as admin once the tournament loads
@@ -416,9 +631,20 @@ async function init() {
         validateOnLoad();
       }
     } catch (e) {
-      renderError('It may have expired. Tournaments are kept for 7 days after the last score.');
+      var archived = isAndroidApp ? findHistoryEntry(urlId) : null;
+      if (archived) {
+        loadArchivedEntry(archived, true);
+      } else {
+        renderError('It may have expired. Tournaments are kept for 7 days after the last score.');
+      }
     }
   } else {
+    if (state.screen === 'tournament') {
+      state.screen = 'setup';
+      state.tournamentId = null;
+      state.localId = null;
+      state.isArchived = false;
+    }
     render();
   }
 }
@@ -432,16 +658,19 @@ function renderError(msg) {
   document.getElementById('app').innerHTML =
     '<h1 class="page-title">Tournament not found</h1>' +
     '<p class="lede">' + esc(msg) + '</p>' +
-    '<div class="start"><button type="button" class="btn btn-primary" onclick="goHome()">Start a new tournament</button></div>';
+    '<div class="start btn-row"><button type="button" class="btn btn-primary" onclick="goHome()">Start a new tournament</button>' +
+    (isAndroidApp ? '<button type="button" class="btn btn-secondary" onclick="openPastGames()">Past games</button>' : '') +
+    '</div>';
 }
 
 function goHome() {
-  history.pushState(null, '', '/');
+  if (window.location.pathname !== '/') history.pushState(null, '', '/');
   state = {
     screen: 'setup', players: [], courts: 2, pointsPerMatch: 24, customPoints: false,
     format: 'americano', targetRounds: 8,
     rounds: [], scores: [], activeRound: 0,
-    tournamentId: null, editToken: null, adminCode: null, isCreator: false, isViewer: false, createdAt: null,
+    tournamentId: null, localId: null, isArchived: false,
+    editToken: null, adminCode: null, isCreator: false, isViewer: false, createdAt: null,
   };
   render();
 }
@@ -510,6 +739,7 @@ function revokeLocalAdmin() {
   state.adminCode = null;
   state.isCreator = false;
   state.isViewer = true;
+  saveCurrentToHistory();
 }
 
 function debouncedSave() {
@@ -518,6 +748,7 @@ function debouncedSave() {
 }
 
 async function createTournamentOnServer() {
+  var prevLocalId = state.localId;
   try {
     var res = await fetch('/api/tournament', {
       method: 'POST',
@@ -535,6 +766,7 @@ async function createTournamentOnServer() {
     if (!res.ok) throw new Error('API error');
     var data = await res.json();
     state.tournamentId = data.id;
+    state.localId = null;
     state.editToken = data.editToken;
     state.adminCode = data.adminCode;
     state.isCreator = true;
@@ -544,6 +776,7 @@ async function createTournamentOnServer() {
     localStorage.setItem('americano_admin_' + data.id, data.adminCode);
     localStorage.setItem('americano_role_' + data.id, 'creator');
     history.pushState(null, '', '/' + data.id);
+    saveCurrentToHistory(prevLocalId);
   } catch (e) {
     showToast('Offline mode — no sharing');
   }
@@ -590,6 +823,7 @@ async function joinAsAdmin(code) {
       state.editToken = code;
       state.isViewer = false;
       state.isCreator = false;
+      saveCurrentToHistory();
       showToast('Admin access granted');
       render();
     } else {
@@ -742,11 +976,111 @@ function render(focusKey) {
   var key = focusKey || (active && active.getAttribute && active.getAttribute('data-key'));
   var app = document.getElementById('app');
   if (state.screen === 'setup') renderSetup(app);
+  else if (state.screen === 'history' && isAndroidApp) renderHistory(app);
   else renderTournament(app);
   if (!key) return;
   var target = app.querySelector('[data-key="' + key + '"]');
   if (!target && key.indexOf('remove-') === 0) target = document.getElementById('newPlayer');
   if (target && !target.disabled) target.focus();
+}
+
+function renderAppTabs(activeScreen) {
+  if (!isAndroidApp) return '';
+  var count = loadHistory().length;
+  return '<div class="app-tabs" role="group" aria-label="App sections">' +
+    '<button type="button" class="app-tab" data-key="tab-setup" aria-pressed="' + (activeScreen === 'setup') + '" onclick="state.screen=\'setup\';render()">New tournament</button>' +
+    '<button type="button" class="app-tab" data-key="tab-history" aria-pressed="' + (activeScreen === 'history') + '" onclick="openPastGames()">Past games' + (count ? ' (' + count + ')' : '') + '</button>' +
+    '</div>';
+}
+
+function formatHistoryDate(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var now = new Date();
+  var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  var time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return 'Today, ' + time;
+  var yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (d.getFullYear() === yest.getFullYear() && d.getMonth() === yest.getMonth() && d.getDate() === yest.getDate()) {
+    return 'Yesterday, ' + time;
+  }
+  return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }) + ', ' + time;
+}
+
+function summarizeHistoryEntry(entry) {
+  var rounds = entry.rounds || [];
+  var scores = entry.scores || [];
+  var players = entry.players || [];
+  var scoredMatches = 0, totalMatches = 0;
+  var pts = Object.create(null);
+  players.forEach(function(p) { pts[p] = 0; });
+  scores.forEach(function(rs, ri) {
+    (rs || []).forEach(function(s, mi) {
+      totalMatches++;
+      if (isMatchScored(s) && rounds[ri] && rounds[ri].matches[mi]) {
+        scoredMatches++;
+        var m = rounds[ri].matches[mi];
+        m.team1.forEach(function(p) { pts[p] = (pts[p] || 0) + Number(s.team1); });
+        m.team2.forEach(function(p) { pts[p] = (pts[p] || 0) + Number(s.team2); });
+      }
+    });
+  });
+  var ranked = players.map(function(p) { return { name: p, points: pts[p] || 0 }; })
+    .sort(function(a, b) { return b.points - a.points; });
+  var isComplete = totalMatches > 0 && scoredMatches === totalMatches &&
+    (entry.format !== 'mexicano' || rounds.length >= (entry.targetRounds || rounds.length));
+  var topPts = ranked.length ? ranked[0].points : 0;
+  var leaders = topPts > 0 ? ranked.filter(function(r) { return r.points === topPts; }).map(function(r) { return r.name; }) : [];
+  return {
+    scoredMatches: scoredMatches,
+    totalMatches: totalMatches,
+    isComplete: isComplete,
+    leaders: leaders,
+    topPts: topPts,
+  };
+}
+
+function renderHistory(app) {
+  document.getElementById('headerInfo').textContent = '';
+  var list = loadHistory();
+  var html = renderAppTabs('history') +
+    '<h1 class="page-title">Past games</h1>' +
+    '<p class="lede">Saved automatically on this phone — even after the 7-day live link expires.</p>';
+
+  if (!list.length) {
+    html += '<div class="history-empty"><p>No games saved yet. Start a tournament or open a shared link in the app and it will appear here automatically.</p></div>';
+  } else {
+    html += '<ul class="history-list">';
+    list.forEach(function(entry) {
+      var info = summarizeHistoryEntry(entry);
+      var fmtName = (FORMATS[entry.format] || FORMATS.americano).name;
+      var statusText = info.isComplete
+        ? 'Finished'
+        : (info.scoredMatches > 0 ? info.scoredMatches + '/' + info.totalMatches + ' matches scored' : 'No scores yet');
+      var leaderHtml = '';
+      if (info.leaders.length) {
+        leaderHtml = '<p class="history-leader"><span class="pill">' + (info.isComplete ? 'Winner' : 'Leading') + '</span>' +
+          esc(info.leaders.join(' & ')) + ' · ' + info.topPts + ' pts</p>';
+      }
+      var safeKey = esc(entry.key).replace(/'/g, '&#39;');
+      html += '<li class="history-card">' +
+        '<div class="history-head"><div>' +
+        '<p class="history-title">' + esc(fmtName) + ' · ' + (entry.players || []).length + ' players</p>' +
+        '<p class="history-date">' + esc(formatHistoryDate(entry.updatedAt || entry.createdAt)) + ' · ' + esc(statusText) + '</p>' +
+        '</div>' +
+        '<button type="button" class="icon-btn" aria-label="Remove game from history" onclick="deleteHistoryEntry(\'' + safeKey + '\')">' + ICON_X + '</button>' +
+        '</div>' +
+        '<p class="history-meta">' + esc((entry.players || []).join(', ')) + '</p>' +
+        leaderHtml +
+        '<div class="history-actions">' +
+        '<button type="button" class="btn btn-primary" onclick="openHistoryGame(\'' + safeKey + '\')">Open</button>' +
+        '<button type="button" class="btn btn-secondary" onclick="playAgainFromHistory(\'' + safeKey + '\')">Play again</button>' +
+        '</div></li>';
+    });
+    html += '</ul>';
+  }
+  app.innerHTML = html;
 }
 
 var POINT_PRESETS = [16, 21, 24, 32];
@@ -764,6 +1098,7 @@ function renderSetup(app) {
   var customPoints = state.customPoints || POINT_PRESETS.indexOf(state.pointsPerMatch) < 0;
 
   app.innerHTML =
+    renderAppTabs('setup') +
     '<h1 class="page-title">New tournament</h1>' +
     '<p class="lede">Add your players and courts, then share one link so everyone can follow the scores.</p>' +
     '<div class="form">' +
@@ -863,7 +1198,15 @@ function renderTournament(app) {
 
   var html = '';
 
-  if (state.tournamentId) {
+  if (state.isArchived) {
+    html += '<div class="share-line"><div class="share-text">' +
+      '<span class="badge">Archived</span>' +
+      '<p class="share-url">Saved on this device</p>' +
+      '<p class="share-meta">The 7-day live link expired or you’re offline.</p>' +
+      '</div>' +
+      (state.tournamentId ? '<button type="button" class="btn btn-secondary" onclick="init()">Retry</button>' : '') +
+      '</div>';
+  } else if (state.tournamentId) {
     html += '<div class="share-line"><div class="share-text">' +
       (isViewer ? '<span class="badge">View only</span>' : '') +
       '<p class="share-url">' + esc(shareLinkUrl().replace(/^https?:\/\//, '')) + '</p>' +
@@ -915,12 +1258,12 @@ function renderTournament(app) {
       '<td class="num">' + st.played + '</td><td class="num pts' + (st.points === 0 ? ' is-zero' : '') + '">' + st.points + '</td></tr>';
   });
   html += '</tbody></table>';
-  if (isViewer) html += '<button type="button" class="btn btn-secondary refresh" onclick="location.reload()">Refresh scores</button>';
+  if (isViewer && !state.isArchived) html += '<button type="button" class="btn btn-secondary refresh" onclick="location.reload()">Refresh scores</button>';
   html += '</section>';
 
   // The creator manages the admin code so co-organisers can add scores too.
   // Only the creator sees/shares it (a joined admin's copy can go stale after a reset).
-  if (state.tournamentId && state.isCreator) {
+  if (state.tournamentId && state.isCreator && !state.isArchived) {
     html += '<section class="section" aria-labelledby="adminTitle"><h2 class="section-title" id="adminTitle">Let others keep score</h2>';
     if (state.adminCode) {
       html += '<p class="hint first">Anyone with this code can enter scores. Reset it to take that access away.</p>' +
@@ -938,7 +1281,7 @@ function renderTournament(app) {
   }
 
   // Viewers can become an editor by entering the admin code
-  if (state.tournamentId && isViewer) {
+  if (state.tournamentId && isViewer && !state.isArchived) {
     html += '<section class="section">' +
       '<label class="section-title" for="adminCodeInput">Keeping score?</label>' +
       '<p class="hint first">Enter the admin code from the organiser.</p>' +
@@ -948,7 +1291,12 @@ function renderTournament(app) {
       '</div></section>';
   }
 
-  if (!isViewer) {
+  if (isAndroidApp) {
+    html += '<div class="section btn-row">' +
+      '<button type="button" class="btn btn-secondary" onclick="openPastGames()">Past games</button>' +
+      '<button type="button" class="btn btn-text" onclick="goHome()">New tournament</button>' +
+      '</div>';
+  } else if (!isViewer) {
     html += '<div class="section"><button type="button" class="btn btn-text danger" onclick="confirmReset()">Back to setup</button></div>';
   }
 
@@ -989,12 +1337,14 @@ function onScoreBlur(roundIdx, matchIdx, team, event) {
   // Keep focus on the field the user was moving to (e.g. tabbing to the next score)
   var next = event && event.relatedTarget;
   render(next && next.getAttribute && next.getAttribute('data-key'));
+  saveCurrentToHistory();
   debouncedSave();
 }
 
 function clearRound(idx) {
   state.scores[idx] = state.rounds[idx].matches.map(function() { return { team1: '', team2: '' }; });
   render();
+  saveCurrentToHistory();
   debouncedSave();
 }
 
@@ -1061,6 +1411,7 @@ function addBonusRound() {
   state.scores.push(matches.map(function() { return { team1: '', team2: '' }; }));
   state.activeRound = state.rounds.length - 1;
   render();
+  saveCurrentToHistory();
   debouncedSave();
 }
 
@@ -1211,6 +1562,7 @@ function generateNextRound() {
   state.scores.push(round.matches.map(function() { return { team1: '', team2: '' }; }));
   state.activeRound = state.rounds.length - 1;
   render();
+  saveCurrentToHistory();
   debouncedSave();
 }
 
@@ -1218,7 +1570,11 @@ async function startTournament() {
   state.rounds = fmt().buildInitialRounds(state);
   state.scores = state.rounds.map(function(r) { return r.matches.map(function() { return { team1: '', team2: '' }; }); });
   state.activeRound = 0;
+  state.localId = isAndroidApp ? ('local_' + Date.now()) : null;
+  state.isArchived = false;
+  state.createdAt = new Date().toISOString();
   state.screen = 'tournament';
+  saveCurrentToHistory();
   render();
   await createTournamentOnServer();
   render();
@@ -1237,6 +1593,8 @@ function resetToSetup() {
   state.activeRound = 0;
   state.customPoints = false;
   state.tournamentId = null;
+  state.localId = null;
+  state.isArchived = false;
   state.editToken = null;
   state.adminCode = null;
   state.isCreator = false;
@@ -1249,7 +1607,16 @@ function resetToSetup() {
 // Reload only when the tournament in the path changes; a fragment-only change
 // (the skip link, an anchor) must not refetch and reset the open tournament.
 window.addEventListener('popstate', function() {
-  if (getTournamentIdFromUrl() === state.tournamentId) return;
+  var urlId = getTournamentIdFromUrl();
+  if (!urlId && state.screen === 'tournament') {
+    state.screen = isAndroidApp ? 'history' : 'setup';
+    state.tournamentId = null;
+    state.localId = null;
+    state.isArchived = false;
+    render();
+    return;
+  }
+  if (urlId === state.tournamentId) return;
   init();
 });
 init();
